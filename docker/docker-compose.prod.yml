@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build:
@@ -7,30 +5,28 @@ services:
       dockerfile: api/Dockerfile
     container_name: farmer_api_prod
     restart: always
-    environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/farmer_data
+    env_file:
+      - ../.env
     ports:
       - "8000:8000"
     depends_on:
       - db
 
-  dashboard:
-    build:
-      context: ..
-      dockerfile: dashboard/Dockerfile
-    container_name: farmer_dashboard_prod
-    restart: always
-    ports:
-      - "80:80"
+  # dashboard:
+  #   build:
+  #     context: ..
+  #     dockerfile: dashboard/Dockerfile
+  #   container_name: farmer_dashboard_prod
+  #   restart: always
+  #   ports:
+  #     - "80:80"
 
   db:
     image: postgres:15-alpine
     container_name: farmer_db_prod
     restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: farmer_data
+    env_file:
+      - ../.env
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
 

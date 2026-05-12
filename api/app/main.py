@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.app.routers import records, infrastructure
+from app.routers import records, infrastructure
 
 app = FastAPI(title="Farmer Data Collection System API")
 

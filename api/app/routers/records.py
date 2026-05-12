@@ -1,22 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
-from api.app.db.session import get_db
-from api.app.models import models
-from api.app.schemas import schemas
+from app.db.session import get_db
+from app.models import models
+from app.schemas import schemas
+from app.pipeline.processor import AIProcessor
 from datetime import datetime
 import uuid
+import asyncio
 
 router = APIRouter()
 
 @router.post("/records", response_model=schemas.SubmissionResponse)
-def create_record(submission: schemas.FarmerSubmission, db: Session = Depends(get_db)):
+async def create_record(submission: schemas.FarmerSubmission, db: Session = Depends(get_db)):
     # Create the main record
+    farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == submission.farmer_id).first()
+    if not farmer:
+        raise HTTPException(status_code=404, detail="Farmer not found")
+
     record = models.Record(
         record_id=uuid.uuid4(),
         farmer_id=submission.farmer_id,
-        # We'll need to look up the farm_id from the farmer
-        farm_id=db.query(models.Farmer).filter(models.Farmer.farmer_id == submission.farmer_id).scalar().farm_id,
+        farm_id=farmer.farm_id,
         location_id=submission.location_id,
         submitted_at=submission.submitted_at,
         created_at=datetime.utcnow(),
@@ -27,12 +32,12 @@ def create_record(submission: schemas.FarmerSubmission, db: Session = Depends(ge
     )
     db.add(record)
 
-    # Store form fields in product and condition tables
+    # Store form fields if provided
     if submission.form_fields:
         product = models.RecordProduct(
             record_id=record.record_id,
             product_type=submission.form_fields.product_type or "Unknown",
-            product_category=models.ProductCategory.other, # Default for manual submission in Phase 1
+            product_category=models.ProductCategory.other,
             quantity=submission.form_fields.quantity or 0.0,
             quantity_unit=submission.form_fields.quantity_unit or models.QuantityUnit.kg,
             quantity_source=models.QuantitySource.form
@@ -49,6 +54,14 @@ def create_record(submission: schemas.FarmerSubmission, db: Session = Depends(ge
 
     db.commit()
 
+    # Trigger AI processing if a photo is provided
+    if record.photo_url:
+        processor = AIProcessor(db=db)
+        # We run it as a task to avoid blocking the response too long,
+        # although the README says "within 5 seconds", we'll call it here.
+        # For a true async setup, this would be a Celery task.
+        await processor.process_record(record.record_id, record.photo_url)
+
     return {
         "record_id": record.record_id,
         "status": "pending",
@@ -64,10 +77,11 @@ def get_record(record_id: UUID, db: Session = Depends(get_db)):
 
     product = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == record_id).first()
     condition = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == record_id).first()
+    trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == record_id).first()
+    conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == record_id).first()
     location = db.query(models.Location).filter(models.Location.location_id == record.location_id).first()
     farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == record.farmer_id).first()
 
-    # Note: In Phase 1, we don't have AI processing, so we'll return mock extraction data
     return {
         "record_id": record.record_id,
         "farmer_id": record.farmer_id,
@@ -76,7 +90,7 @@ def get_record(record_id: UUID, db: Session = Depends(get_db)):
         "status": record.status.value,
         "product": {
             "type": product.product_type if product else "Unknown",
-            "variety": None,
+            "variety": product.variety if product and product.variety else None,
             "category": product.product_category.value if product else "other"
         },
         "quantity": {
@@ -96,23 +110,23 @@ def get_record(record_id: UUID, db: Session = Depends(get_db)):
             "location_label": location.label if location else "Unknown"
         },
         "traceability": {
-            "expiry_date": None,
-            "lot_number": None,
-            "batch_id": None
+            "expiry_date": trace.expiry_date if trace else None,
+            "lot_number": trace.lot_number if trace else None,
+            "batch_id": trace.batch_id if trace else None
         },
         "extraction": {
-            "method": "form_only",
+            "method": "photo_plus_form" if record.photo_url else "form_only",
             "photo_url": record.photo_url,
-            "ocr_raw_text": None,
-            "model_used": "manual",
+            "ocr_raw_text": record.ocr_raw_text,
+            "model_used": record.model_used,
             "confidence": {
-                "product_type": 1.0,
-                "quantity": 1.0,
-                "condition": 1.0,
-                "expiry_date": 0.0,
-                "location": 1.0,
-                "overall": 1.0
+                "product_type": conf.product_type if conf else 1.0,
+                "quantity": conf.quantity if conf else 1.0,
+                "condition": conf.condition if conf else 1.0,
+                "expiry_date": conf.expiry_date if conf and conf.expiry_date else 0.0,
+                "location": conf.location if conf else 1.0,
+                "overall": conf.overall if conf else 1.0
             },
-            "low_confidence_fields": []
+            "low_confidence_fields": conf.low_confidence_fields.split(",") if conf and conf.low_confidence_fields else []
         }
     }

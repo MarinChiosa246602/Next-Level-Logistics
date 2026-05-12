@@ -1,9 +1,12 @@
-from api.app.db.session import SessionLocal
-from api.app.models import models
+from app.db.session import SessionLocal, engine
+from app.models import models
 import uuid
 from datetime import datetime
 
 def seed_db():
+    # Create tables
+    models.Base.metadata.create_all(bind=engine)
+    
     db = SessionLocal()
     try:
         # Create a Farm
