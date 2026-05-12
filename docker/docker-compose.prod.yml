@@ -12,14 +12,14 @@ services:
     depends_on:
       - db
 
-  # dashboard:
-  #   build:
-  #     context: ..
-  #     dockerfile: dashboard/Dockerfile
-  #   container_name: farmer_dashboard_prod
-  #   restart: always
-  #   ports:
-  #     - "80:80"
+  dashboard:
+    build:
+      context: ..
+      dockerfile: dashboard/Dockerfile
+    container_name: farmer_dashboard_prod
+    restart: always
+    ports:
+      - "80:80"
 
   db:
     image: postgres:15-alpine

@@ -89,6 +89,8 @@ class ConfidenceInfo(BaseModel):
     overall: float
 
 class ExtractionInfo(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    
     method: str
     photo_url: Optional[str] = None
     ocr_raw_text: Optional[str] = None

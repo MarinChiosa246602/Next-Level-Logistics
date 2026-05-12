@@ -1,0 +1,553 @@
+[
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_1.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 50.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-12-31",
+      "lot_number": "LOT-1234"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_2.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 120.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2026-11-15",
+      "lot_number": "LOT-5678"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_3.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 30.0,
+      "quantity_unit": "boxes",
+      "condition": "damaged",
+      "expiry_date": "2026-10-01",
+      "lot_number": "LOT-9012"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_4.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 500.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2027-01-01",
+      "lot_number": "LOT-3456"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_5.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 20.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-09-20",
+      "lot_number": "LOT-7890"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_6.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 45.0,
+      "quantity_unit": "crates",
+      "condition": "mixed",
+      "expiry_date": "2026-12-15",
+      "lot_number": "LOT-1111"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_7.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 100.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2026-11-01",
+      "lot_number": "LOT-2222"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_8.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 25.0,
+      "quantity_unit": "boxes",
+      "condition": "good",
+      "expiry_date": "2026-10-15",
+      "lot_number": "LOT-3333"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_9.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 400.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2027-02-01",
+      "lot_number": "LOT-4444"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_10.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 15.0,
+      "quantity_unit": "crates",
+      "condition": "damaged",
+      "expiry_date": "2026-09-10",
+      "lot_number": "LOT-5555"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_11.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 60.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-12-20",
+      "lot_number": "LOT-6666"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_12.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 110.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2026-11-20",
+      "lot_number": "LOT-7777"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_13.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 20.0,
+      "quantity_unit": "boxes",
+      "condition": "good",
+      "expiry_date": "2026-10-05",
+      "lot_number": "LOT-8888"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_14.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 600.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2027-03-01",
+      "lot_number": "LOT-9999"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_15.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 25.0,
+      "quantity_unit": "crates",
+      "condition": "mixed",
+      "expiry_date": "2026-09-25",
+      "lot_number": "LOT-0000"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_16.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 55.0,
+      "quantity_unit": "crates",
+      "condition": "damaged",
+      "expiry_date": "2026-12-25",
+      "lot_number": "LOT-1212"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_17.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 90.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2026-11-10",
+      "lot_number": "LOT-2323"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_18.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 35.0,
+      "quantity_unit": "boxes",
+      "condition": "mixed",
+      "expiry_date": "2026-10-20",
+      "lot_number": "LOT-3434"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_19.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 450.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      " diamètre": "2027-01-15",
+      "lot_number": "LOT-4545"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_20.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 10.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-09-05",
+      "lot_number": "LOT-5656"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_21.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 70.0,
+      "quantity_unit": "crates",
+      "condition": "mixed",
+      "expiry_date": "2026-12-30",
+      "lot_number": "LOT-6767"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_22.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 130.0,
+      "quantity_unit": "kg",
+      "condition": "damaged",
+      "expiry_date": "2026-11-25",
+      "lot_number": "LOT-7878"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_23.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 15.0,
+      "quantity_unit": "boxes",
+      "condition": "good",
+      "expiry_date": "2026-10-10",
+      "lot_number": "LOT-8989"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_24.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 550.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2027-02-15",
+      "lot_number": "LOT-9090"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_25.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 30.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-09-30",
+      "lot_number": "LOT-0101"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_26.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 40.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-12-05",
+      "lot_number": "LOT-1213"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_27.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 115.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2026-11-15",
+      "lot_number": "LOT-2324"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_28.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 25.0,
+      "quantity_unit": "boxes",
+      "condition": "damaged",
+      "expiry_date": "2026-10-25",
+      "lot_number": "LOT-3435"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_29.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 480.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2027-01-20",
+      "lot_number": "LOT-4546"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_30.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 12.0,
+      "quantity_unit": "crates",
+      "condition": "mixed",
+      "expiry_date": "2026-09-15",
+      "lot_number": "LOT-5657"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_31.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 65.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-12-28",
+      "lot_number": "LOT-6768"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_32.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 105.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "condition": "good",
+      "expiry_date": "2026-11-05",
+      "lot_number": "LOT-7879"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_33.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 30.0,
+      "quantity_unit": "boxes",
+      "condition": "mixed",
+      "expiry_date": "2026-10-12",
+      "lot_number": "LOT-8980"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_34.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 520.0,
+      "quantity_unit": "kg",
+      "condition": "damaged",
+      "expiry_date": "2027-02-20",
+      "lot_number": "LOT-9091"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_35.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 18.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-09-22",
+      "lot_number": "LOT-0102"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_36.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 52.0,
+      "quantity_unit": "crates",
+      "condition": "mixed",
+      "expiry_date": "2026-12-18",
+      "lot_number": "LOT-1214"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_37.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 112.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2026-11-12",
+      "lot_number": "LOT-2325"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_38.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 28.0,
+      "quantity_unit": "boxes",
+      "condition": "good",
+      "expiry_date": "2026-10-18",
+      "lot_number": "LOT-3436"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_39.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 430.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2027-01-10",
+      "lot_number": "LOT-4547"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_40.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 14.0,
+      "quantity_unit": "crates",
+      "condition": "damaged",
+      "expiry_date": "2026-09-08",
+      "lot_number": "LOT-5658"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_41.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 68.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-12-22",
+      "lot_number": "LOT-6769"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_42.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 125.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2026-11-28",
+      "lot_number": "LOT-7880"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_43.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 22.0,
+      "quantity_unit": "boxes",
+      "condition": "good",
+      "expiry_date": "2026-10-14",
+      "lot_number": "LOT-8991"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_44.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 570.0,
+      "quantity_unit": "kg",
+      "condition": "good",
+      "expiry_date": "2027-03-15",
+      "lot_number": "LOT-9092"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_45.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 28.0,
+      "quantity_unit": "crates",
+      "condition": "mixed",
+      "expiry_date": "2026-09-28",
+      "lot_number": "LOT-0103"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_46.jpg",
+    "ground_truth": {
+      "product_type": "Tomatoes",
+      "quantity": 42.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-12-08",
+      "lot_number": "LOT-1215"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_47.jpg",
+    "ground_truth": {
+      "product_type": "Apples",
+      "quantity": 118.0,
+      "quantity_unit": "kg",
+      "condition": "damaged",
+      "expiry_date": "2026-11-18",
+      "lot_number": "LOT-2326"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_48.jpg",
+    "ground_truth": {
+      "product_type": "Carrots",
+      "quantity": 32.0,
+      "quantity_unit": "boxes",
+      "condition": "good",
+      "expiry_date": "2026-10-22",
+      "lot_number": "LOT-3437"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_49.jpg",
+    "ground_truth": {
+      "product_type": "Wheat",
+      "quantity": 460.0,
+      "quantity_unit": "kg",
+      "condition": "mixed",
+      "expiry_date": "2027-01-12",
+      "lot_number": "LOT-4548"
+    }
+  },
+  {
+    "image_url": "https://s3.amazonaws.com/test-images/img_50.jpg",
+    "ground_truth": {
+      "product_type": "Lettuce",
+      "quantity": 16.0,
+      "quantity_unit": "crates",
+      "condition": "good",
+      "expiry_date": "2026-09-12",
+      "lot_number": "LOT-5659"
+    }
+  }
+]

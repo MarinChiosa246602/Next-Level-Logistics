@@ -1,13 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 from app.db.session import get_db
 from app.models import models
 from app.schemas import schemas
 from app.pipeline.processor import AIProcessor
+from app.services.webhook import WebhookService
 from datetime import datetime
 import uuid
 import asyncio
+import io
+import csv
 
 router = APIRouter()
 
@@ -57,9 +61,6 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
     # Trigger AI processing if a photo is provided
     if record.photo_url:
         processor = AIProcessor(db=db)
-        # We run it as a task to avoid blocking the response too long,
-        # although the README says "within 5 seconds", we'll call it here.
-        # For a true async setup, this would be a Celery task.
         await processor.process_record(record.record_id, record.photo_url)
 
     return {
@@ -130,3 +131,124 @@ def get_record(record_id: UUID, db: Session = Depends(get_db)):
             "low_confidence_fields": conf.low_confidence_fields.split(",") if conf and conf.low_confidence_fields else []
         }
     }
+
+@router.get("/records")
+def list_records(
+    farm_id: UUID = None,
+    status: models.RecordStatus = None,
+    from_date: datetime = None,
+    to_date: datetime = None,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Record)
+
+    if farm_id:
+        query = query.filter(models.Record.farm_id == farm_id)
+    if status:
+        query = query.filter(models.Record.status == status)
+    if from_date:
+        query = query.filter(models.Record.submitted_at >= from_date)
+    if to_date:
+        query = query.filter(models.Record.submitted_at <= to_date)
+
+    records = query.order_by(models.Record.submitted_at.desc()).offset(offset).limit(limit).all()
+
+    return [
+        {
+            "record_id": r.record_id,
+            "farmer_id": r.farmer_id,
+            "farm_id": r.farm_id,
+            "submitted_at": r.submitted_at,
+            "status": r.status.value,
+            "photo_url": r.photo_url,
+            "product_type": db.query(models.RecordProduct).filter(models.RecordProduct.record_id == r.record_id).scalar_subquery().product_type if False else None, # Placeholder
+        } for r in records
+    ]
+
+@router.patch("/records/{record_id}")
+async def update_record_status(
+    record_id: UUID,
+    status: models.RecordStatus,
+    db: Session = Depends(get_db)
+):
+    record = db.query(models.Record).filter(models.Record.record_id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    old_status = record.status
+    record.status = status
+    record.updated_at = datetime.utcnow()
+    db.commit()
+
+    if status == models.RecordStatus.confirmed and old_status != models.RecordStatus.confirmed:
+        # Trigger Webhook
+        webhook = WebhookService()
+        # We need full record data for the webhook
+        full_record = {
+            "record_id": str(record.record_id),
+            "farm_id": str(record.farm_id),
+            "updated_at": record.updated_at.isoformat(),
+            "status": record.status.value,
+            "photo_url": record.photo_url
+        }
+        await webhook.send_confirmation(full_record)
+
+    return {"message": "Status updated", "status": status.value}
+
+@router.get("/records/export")
+def export_records(
+    farm_id: UUID = None,
+    from_date: datetime = None,
+    to_date: datetime = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Record)
+    if farm_id:
+        query = query.filter(models.Record.farm_id == farm_id)
+    if from_date:
+        query = query.filter(models.Record.submitted_at >= from_date)
+    if to_date:
+        query = query.filter(models.Record.submitted_at <= to_date)
+
+    records = query.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "record_id", "farmer_id", "farm_id", "submitted_at", "product_type",
+        "product_category", "quantity", "quantity_unit", "condition",
+        "location_label", "location_type", "expiry_date", "lot_number",
+        "input_method", "overall_confidence", "status"
+    ])
+
+    for r in records:
+        prod = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == r.record_id).first()
+        cond = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == r.record_id).first()
+        trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == r.record_id).first()
+        conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == r.record_id).first()
+        loc = db.query(models.Location).filter(models.Location.location_id == r.location_id).first()
+
+        writer.writerow([
+            r.record_id, r.farmer_id, r.farm_id, r.submitted_at,
+            prod.product_type if prod else "",
+            prod.product_category.value if prod else "",
+            prod.quantity if prod else "",
+            prod.quantity_unit.value if prod else "",
+            cond.rating.value if cond else "",
+            loc.label if loc else "",
+            loc.type.value if loc else "",
+            trace.expiry_date if trace else "",
+            trace.lot_number if trace else "",
+            r.input_method.value,
+            conf.overall if conf else "",
+            r.status.value
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=records_export.csv"}
+    )

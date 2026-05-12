@@ -13,7 +13,8 @@ COPY api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY api/ .
+COPY api/app ./app
+COPY api/seed.py .
 
 # Expose the port FastAPI runs on
 EXPOSE 8000
