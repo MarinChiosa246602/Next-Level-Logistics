@@ -7,12 +7,15 @@ export const api = {
     return response.json();
   },
 
-  async uploadPhoto(formData) {
-    const response = await fetch(`${API_BASE_URL}/photos/upload`, {
+  async submitRecord(payload) {
+    const response = await fetch(`${API_BASE_URL}/records`, {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error('Photo upload failed');
+    if (!response.ok) throw new Error('Record submission failed');
     return response.json();
   },
 
