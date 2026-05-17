@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, TextInput, ActivityIndicator, Modal, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, TextInput, ActivityIndicator, Modal, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../services/api';
 import { offlineQueue } from '../services/offlineQueue';
@@ -28,6 +28,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiWarning, setAiWarning] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showRetakeModal, setShowRetakeModal] = useState(false);
   const [aiResults, setAiResults] = useState(null);
@@ -68,10 +69,11 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       if (result.canceled === false) {
         const localUri = result.assets[0].uri;
         setCapturedImage(localUri);
+        setUploadedImageUrl(null);
         setShowRetakeModal(true);
         const uploadedUrl = await processPhotoWithAI(localUri);
         if (uploadedUrl) {
-          setCapturedImage(uploadedUrl);
+          setUploadedImageUrl(uploadedUrl);
         }
       }
       setIsProcessing(false);
@@ -122,8 +124,10 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setUploadedImageUrl(null);
     setShowRetakeModal(false);
     setAiResults(null);
+    handlePhotoCapture();
   };
 
   const handleKeepPhoto = () => {
@@ -150,7 +154,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
         condition: form.condition,
         notes: form.notes,
       },
-      photo: capturedImage ? { file_url: capturedImage } : null,
+      photo: capturedImage ? { file_url: uploadedImageUrl || capturedImage } : null,
     };
 
     try {
@@ -165,6 +169,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
         notes: '',
       });
       setCapturedImage(null);
+      setUploadedImageUrl(null);
       setAiResults(null);
     } catch (e) {
       await offlineQueue.enqueue(payload);
@@ -177,7 +182,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Header title={t('submission.title', lang)} />
-      <ScrollView style={styles.container}>
+      <ResponsiveContainer style={styles.container}>
         <View style={styles.content}>
           <Card style={styles.photoCard}>
             <Text style={styles.sectionTitle}>📸 Capture Photo</Text>
@@ -251,7 +256,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
               </Picker>
             </View>
 
-            <View style={styles.row}>
+            <View style={[styles.row, width < 360 && styles.rowStack]}>
               <View style={styles.col}>
                 <Text style={styles.label}>{t('submission.quantity', lang)}</Text>
                 <TextInput
@@ -348,7 +353,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
             <Text style={styles.feedbackText}>💬 Feedback</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ResponsiveContainer>
 
       <FeedbackModal
         visible={showFeedback}
@@ -410,8 +415,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewImage: {
-    width: 200,
-    height: 150,
+    width: '100%',
+    maxWidth: 320,
+    aspectRatio: 4 / 3,
     borderRadius: radius.lg,
     borderColor: colors.border,
     borderWidth: 1,
@@ -464,6 +470,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  rowStack: {
+    flexDirection: 'column',
+  },
   col: {
     flex: 1,
   },
@@ -490,7 +499,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   modalButtons: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: spacing.md,
     width: '100%',
   },
