@@ -1,65 +1,133 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { colors, typography, spacing, radius } from '../theme';
+import Header from '../components/Header';
+import Card from '../components/Card';
+import Button from '../components/Button';
 import { t } from '../constants/translations';
 
-const HomeScreen = ({ navigation, lang = 'nl', isOffline = false }) => {
+const HomeScreen = ({ navigation, lang = 'nl', setLang, isOffline = false }) => {
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
+      <Header title={t('home.welcome', lang)} />
+
       {isOffline && (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>{t('home.offline_banner', lang)}</Text>
+          <Text style={styles.offlineText}>⚠️ {t('home.offline_banner', lang)}</Text>
         </View>
       )}
+
+      <View style={styles.langContainer}>
+        {['en', 'nl', 'fr'].map(l => (
+          <TouchableOpacity
+            key={l}
+            onPress={() => setLang && setLang(l)}
+            style={[styles.langButton, lang === l && styles.langButtonActive]}
+          >
+            <Text style={[styles.langText, lang === l && styles.langTextActive]}>
+              {l.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <View style={styles.hero}>
         <Text style={styles.title}>{t('home.title', lang)}</Text>
         <Text style={styles.subtitle}>Manage your harvest data simply.</Text>
       </View>
 
-      <View style={styles.menu}>
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: '#007AFF' }]}
-          onPress={() => navigation.navigate('Submission')}
-        >
-          <Text style={styles.menuButtonText}>{t('home.log_harvest', lang)}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: '#34C759' }]}
-          onPress={() => navigation.navigate('History')}
-        >
-          <Text style={styles.menuButtonText}>{t('home.my_records', lang)}</Text>
-        </TouchableOpacity>
-      </View>
+      <Card style={styles.infoCard}>
+        <Text style={styles.cardTitle}>Quick Start</Text>
+        <Text style={styles.cardText}>
+          Use the Log tab to record your harvest data with photos or manual entry.
+        </Text>
+      </Card>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Version 1.0.0 • Dutch / English / French</Text>
+        <Text style={styles.footerText}>Version 1.0.0 • Multi-language Support</Text>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  offlineBanner: { backgroundColor: '#FFCC00', padding: 10, alignItems: 'center' },
-  offlineText: { color: '#333', fontWeight: 'bold', fontSize: 14 },
-  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#333', textAlign: 'center' },
-  subtitle: { fontSize: 18, color: '#666', marginTop: 10, textAlign: 'center' },
-  menu: { flex: 1, justifyContent: 'center', padding: 30, gap: 20 },
-  menuButton: {
-    padding: 20,
-    borderRadius: 15,
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  menuButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  footer: { padding: 20, alignItems: 'center' },
-  footerText: { color: '#ccc', fontSize: 12 },
+  offlineBanner: {
+    backgroundColor: colors.warning,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  offlineText: {
+    color: colors.gray900,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  langContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  langButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.gray100,
+  },
+  langButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  langText: {
+    fontSize: 12,
+    color: colors.gray600,
+    fontWeight: '500',
+  },
+  langTextActive: {
+    color: colors.white,
+  },
+  hero: {
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  title: {
+    ...typography.h2,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  subtitle: {
+    ...typography.body1,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
+  infoCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  cardTitle: {
+    ...typography.h6,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  cardText: {
+    ...typography.body2,
+    color: colors.text.secondary,
+  },
+  footer: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  footerText: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+  },
 });
 
 export default HomeScreen;
+

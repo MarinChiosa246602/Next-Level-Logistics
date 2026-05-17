@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors, spacing, radius } from '../theme';
 
 export const ConditionSelector = ({ value, onChange, lang = 'nl', t }) => {
   const options = [
-    { id: 'good', label: t('common.good', lang) },
-    { id: 'mixed', label: t('common.mixed', lang) },
-    { id: 'damaged', label: t('common.damaged', lang) },
+    { id: 'good', label: t('common.good', lang), icon: '✅' },
+    { id: 'mixed', label: t('common.mixed', lang), icon: '⚠️' },
+    { id: 'damaged', label: t('common.damaged', lang), icon: '❌' },
   ];
 
   return (
@@ -17,7 +18,7 @@ export const ConditionSelector = ({ value, onChange, lang = 'nl', t }) => {
           onPress={() => onChange(opt.id)}
         >
           <Text style={[styles.text, value === opt.id && styles.activeText]}>
-            {opt.label}
+            {opt.icon} {opt.label}
           </Text>
         </TouchableOpacity>
       ))}
@@ -26,22 +27,19 @@ export const ConditionSelector = ({ value, onChange, lang = 'nl', t }) => {
 };
 
 export const StatusBadge = ({ status, lang = 'nl', t }) => {
-  const colors = {
-    confirmed: '#e6fffa',
-    text_confirmed: '#2c7a7b',
-    pending: '#fffaf0',
-    text_pending: '#b7791f',
-    flagged: '#fff5f5',
-    text_flagged: '#c53030',
-    rejected: '#edf2f7',
-    text_rejected: '#4a5568',
+  const statusColors = {
+    confirmed: { bg: '#E8F5E9', text: colors.success },
+    pending: { bg: '#FFF3E0', text: colors.warning },
+    flagged: { bg: '#FFEBEE', text: colors.error },
+    rejected: { bg: '#F5F5F5', text: colors.gray600 },
   };
 
+  const statusStyle = statusColors[status] || statusColors.rejected;
   const label = t(`common.${status}`, lang) || status;
 
   return (
-    <View style={[styles.badge, { backgroundColor: colors[status] || colors.rejected }]}>
-      <Text style={[styles.badgeText, { color: colors[`text_${status}`] || colors.text_rejected }]}>
+    <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
+      <Text style={[styles.badgeText, { color: statusStyle.text }]}>
         {label}
       </Text>
     </View>
@@ -49,28 +47,44 @@ export const StatusBadge = ({ status, lang = 'nl', t }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
   chip: {
     flex: 1,
-    paddingVertical: 12,
-    marginHorizontal: 4,
-    borderRadius: 8,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   activeChip: {
-    borderColor: '#007AFF',
-    backgroundColor: '#eef6ff',
+    borderColor: colors.primary,
+    backgroundColor: '#E8F5E9',
   },
-  text: { fontSize: 16, color: '#666' },
-  activeText: { color: '#007AFF', fontWeight: 'bold' },
+  text: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    fontWeight: '500',
+  },
+  activeText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
     alignSelf: 'flex-start',
   },
-  badgeText: { fontSize: 12, fontWeight: '600' },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
+

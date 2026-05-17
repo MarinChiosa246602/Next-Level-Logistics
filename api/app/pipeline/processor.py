@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from app.models import models
-from app.pipeline.vision import VisionService
+from app.services.gemini_vision import GeminiVisionService
 from app.pipeline.ocr import OCRService
 from datetime import datetime
 import uuid
@@ -9,7 +9,10 @@ import uuid
 class AIProcessor:
     def __init__(self, db: Session, vision_api_key: str = None, ocr_api_key: str = None):
         self.db = db
-        self.vision_service = VisionService(api_key=vision_api_key)
+        vision_key = vision_api_key or os.getenv("GEMINI_API_KEY")
+        if not vision_key:
+            raise ValueError("GEMINI_API_KEY not provided and not found in environment")
+        self.vision_service = GeminiVisionService(api_key=vision_key)
         self.ocr_service = OCRService(api_key=ocr_api_key)
 
     async def process_record(self, record_id: uuid.UUID, photo_url: str):
