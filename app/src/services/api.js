@@ -1,8 +1,23 @@
 import { sampleLocations, productTypes } from './sampleData';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/v1';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.6:8000/v1';
 
 export const api = {
+  async getFarmer(farmerId) {
+    try {
+      const url = `${API_BASE_URL}/farmer/${farmerId}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Farmer not found`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching farmer:', error.message);
+      throw error;
+    }
+  },
+
   async getLocations(farmId) {
     try {
       if (!farmId) {

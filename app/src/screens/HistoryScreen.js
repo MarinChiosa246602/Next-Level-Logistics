@@ -16,6 +16,7 @@ const HistoryScreen = ({ farmerId, lang = 'nl' }) => {
 
   useFocusEffect(
     React.useCallback(() => {
+      setLoading(true);
       loadHistory();
     }, [farmerId])
   );

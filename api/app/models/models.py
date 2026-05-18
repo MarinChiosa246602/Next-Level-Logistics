@@ -1,5 +1,4 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, DECIMAL, Boolean, Enum, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 import enum
 import uuid
@@ -53,7 +52,7 @@ class QuantitySource(enum.Enum):
 
 class Farm(Base):
     __tablename__ = "farms"
-    farm_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    farm_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(120), nullable=False)
     owner_name = Column(String(120), nullable=False)
     region = Column(String(80), nullable=False)
@@ -61,9 +60,10 @@ class Farm(Base):
 
 class Farmer(Base):
     __tablename__ = "farmers"
-    farmer_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farm_id = Column(UUID(as_uuid=True), ForeignKey("farms.farm_id"), nullable=False)
+    farmer_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    farm_id = Column(String(36), ForeignKey("farms.farm_id"), nullable=False)
     name = Column(String(120), nullable=False)
+    username = Column(String(50), nullable=True, unique=True)
     phone_number = Column(String(20), nullable=True)
     preferred_language = Column(String(2), server_default="nl", nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False)
@@ -71,8 +71,8 @@ class Farmer(Base):
 
 class Location(Base):
     __tablename__ = "locations"
-    location_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farm_id = Column(UUID(as_uuid=True), ForeignKey("farms.farm_id"), nullable=False)
+    location_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    farm_id = Column(String(36), ForeignKey("farms.farm_id"), nullable=False)
     label = Column(String(100), nullable=False)
     type = Column(Enum(LocationType), nullable=False)
     lat = Column(DECIMAL(9, 6), nullable=True)
@@ -81,10 +81,10 @@ class Location(Base):
 
 class Record(Base):
     __tablename__ = "records"
-    record_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    farmer_id = Column(UUID(as_uuid=True), ForeignKey("farmers.farmer_id"), nullable=False)
-    farm_id = Column(UUID(as_uuid=True), ForeignKey("farms.farm_id"), nullable=False)
-    location_id = Column(UUID(as_uuid=True), ForeignKey("locations.location_id"), nullable=False)
+    record_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    farmer_id = Column(String(36), ForeignKey("farmers.farmer_id"), nullable=False)
+    farm_id = Column(String(36), ForeignKey("farms.farm_id"), nullable=False)
+    location_id = Column(String(36), ForeignKey("locations.location_id"), nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
@@ -96,8 +96,8 @@ class Record(Base):
 
 class RecordProduct(Base):
     __tablename__ = "record_products"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    record_id = Column(UUID(as_uuid=True), ForeignKey("records.record_id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    record_id = Column(String(36), ForeignKey("records.record_id"), nullable=False)
     product_type = Column(String(80), nullable=False)
     product_category = Column(Enum(ProductCategory), nullable=False)
     variety = Column(String(80), nullable=True)
@@ -107,28 +107,28 @@ class RecordProduct(Base):
 
 class RecordCondition(Base):
     __tablename__ = "record_condition"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    record_id = Column(UUID(as_uuid=True), ForeignKey("records.record_id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    record_id = Column(String(36), ForeignKey("records.record_id"), nullable=False)
     rating = Column(Enum(ConditionRating), nullable=False)
     notes = Column(String(200), nullable=True)
-    source = Column(Enum(Source), nullable=False) # Note: README says source is photo|form, but I'll use a separate enum if needed. Actually README says source is ENUM(photo, form).
+    source = Column(Enum(Source), nullable=False)
 
 class RecordTraceability(Base):
     __tablename__ = "record_traceability"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    record_id = Column(UUID(as_uuid=True), ForeignKey("records.record_id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    record_id = Column(String(36), ForeignKey("records.record_id"), nullable=False)
     expiry_date = Column(DateTime, nullable=True)
     lot_number = Column(String(60), nullable=True)
     batch_id = Column(String(60), nullable=True)
 
 class RecordConfidence(Base):
     __tablename__ = "record_confidence"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    record_id = Column(UUID(as_uuid=True), ForeignKey("records.record_id"), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    record_id = Column(String(36), ForeignKey("records.record_id"), nullable=False)
     product_type = Column(DECIMAL(4, 3), nullable=False)
     quantity = Column(DECIMAL(4, 3), nullable=False)
     condition = Column(DECIMAL(4, 3), nullable=False)
     expiry_date = Column(DECIMAL(4, 3), nullable=True)
     location = Column(DECIMAL(4, 3), nullable=False)
     overall = Column(DECIMAL(4, 3), nullable=False)
-    low_confidence_fields = Column(Text, nullable=True) # stored as comma separated or JSON since SQLAlchemy doesn't have a native PG array without special imports
+    low_confidence_fields = Column(Text, nullable=True)

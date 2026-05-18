@@ -5,6 +5,7 @@ from app.services.gemini_vision import GeminiVisionService
 from app.pipeline.ocr import OCRService
 from datetime import datetime
 import uuid
+import os
 
 class AIProcessor:
     def __init__(self, db: Session, vision_api_key: str = None, ocr_api_key: str = None):

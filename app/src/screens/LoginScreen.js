@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { userSession } from '../services/userSession';
+import { api } from '../services/api';
 import { colors, typography, spacing, radius } from '../theme';
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -19,18 +20,26 @@ const LoginScreen = ({ navigation, lang = 'nl' }) => {
 
     setLoading(true);
     try {
-      await userSession.setFarmer({
-        farmer_id: farmerId,
-        farm_id: '00000000-0000-0000-0000-000000000000',
-        name: 'Selected Farmer'
-      });
+      console.log('🔍 Fetching farmer:', farmerId);
+      const farmer = await api.getFarmer(farmerId);
+      console.log('✅ Farmer data received:', farmer);
 
-      navigation.navigate('Home', {
-        farmer_id: farmerId,
-        farm_id: '00000000-0000-0000-0000-000000000000',
+      await userSession.setFarmer({
+        farmer_id: farmer.farmer_id,
+        farm_id: farmer.farm_id,
+        name: farmer.name
       });
+      console.log('✅ Farmer saved to session');
+
+      console.log('📱 Navigating to Home with:', { farmer_id: farmer.farmer_id, farm_id: farmer.farm_id });
+      navigation.navigate('Home', {
+        farmer_id: farmer.farmer_id,
+        farm_id: farmer.farm_id,
+      });
+      console.log('✅ Navigation complete');
     } catch (error) {
-      Alert.alert('Error', 'Failed to login. Please try again.');
+      console.error('❌ Error:', error.message, error);
+      Alert.alert('Error', 'Farmer not found. Please check the ID and try again.');
     } finally {
       setLoading(false);
     }

@@ -11,7 +11,7 @@ export const translations = {
       take_photo: 'Foto maken',
       choose_gallery: 'Kies uit galerij',
       manual_fill: 'Handmatig invullen',
-      product_type: 'Producttype',
+      product_type: 'Product Type',
       quantity: 'Hoeveelheid',
       unit: 'Eenheid',
       condition: 'Conditie',

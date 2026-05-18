@@ -6,8 +6,25 @@ import {
   Box, Container, Grid, Paper
 } from '@mui/material';
 import { Download, FilterList, Visibility } from '@mui/icons-material';
+import { api } from '../services/api';
 
 export const RecordTable = ({ records, onDetail, onStatusChange, filters, setFilters }) => {
+  const handleExport = async () => {
+    try {
+      const blob = await api.exportCSV(filters);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `records_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert('Failed to export CSV: ' + error.message);
+    }
+  };
+
   return (
     <Paper style={{ width: '100%', overflow: 'hidden', padding: '20px' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -16,7 +33,7 @@ export const RecordTable = ({ records, onDetail, onStatusChange, filters, setFil
           variant="contained"
           startIcon={<Download />}
           color="primary"
-          onClick={() => window.open(`${process.env.REACT_APP_API_URL}/records/export?farm_id=${filters.farm_id}`, '_blank')}
+          onClick={handleExport}
         >
           Export CSV
         </Button>

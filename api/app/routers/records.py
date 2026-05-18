@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -17,16 +17,24 @@ router = APIRouter()
 
 @router.post("/records", response_model=schemas.SubmissionResponse)
 async def create_record(submission: schemas.FarmerSubmission, db: Session = Depends(get_db)):
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Received submission: farmer_id={submission.farmer_id}, location_id={submission.location_id}")
+
     # Create the main record
-    farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == submission.farmer_id).first()
+    farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == str(submission.farmer_id)).first()
+    logger.info(f"Farmer lookup result: {farmer}")
+
     if not farmer:
+        logger.error(f"Farmer not found for ID: {submission.farmer_id}")
         raise HTTPException(status_code=404, detail="Farmer not found")
 
     record = models.Record(
-        record_id=uuid.uuid4(),
-        farmer_id=submission.farmer_id,
-        farm_id=farmer.farm_id,
-        location_id=submission.location_id,
+        record_id=str(uuid.uuid4()),
+        farmer_id=str(submission.farmer_id),
+        farm_id=str(farmer.farm_id),
+        location_id=str(submission.location_id),
         submitted_at=submission.submitted_at,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
@@ -39,7 +47,7 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
     # Store form fields if provided
     if submission.form_fields:
         product = models.RecordProduct(
-            record_id=record.record_id,
+            record_id=str(record.record_id),
             product_type=submission.form_fields.product_type or "Unknown",
             product_category=models.ProductCategory.other,
             quantity=submission.form_fields.quantity or 0.0,
@@ -49,7 +57,7 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
         db.add(product)
 
         condition = models.RecordCondition(
-            record_id=record.record_id,
+            record_id=str(record.record_id),
             rating=submission.form_fields.condition or models.ConditionRating.good,
             notes=submission.form_fields.notes,
             source=models.Source.form
@@ -61,27 +69,27 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
     # Trigger AI processing if a photo is provided
     if record.photo_url:
         processor = AIProcessor(db=db)
-        await processor.process_record(record.record_id, record.photo_url)
+        await processor.process_record(str(record.record_id), record.photo_url)
 
     return {
-        "record_id": record.record_id,
+        "record_id": str(record.record_id),
         "status": "pending",
         "estimated_processing_ms": 3000,
         "message": "Record received. AI processing started."
     }
 
 @router.get("/records/{record_id}", response_model=schemas.ProcessedRecord)
-def get_record(record_id: UUID, db: Session = Depends(get_db)):
-    record = db.query(models.Record).filter(models.Record.record_id == record_id).first()
+def get_record(record_id: str, db: Session = Depends(get_db)):
+    record = db.query(models.Record).filter(models.Record.record_id == str(record_id)).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
 
-    product = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == record_id).first()
-    condition = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == record_id).first()
-    trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == record_id).first()
-    conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == record_id).first()
-    location = db.query(models.Location).filter(models.Location.location_id == record.location_id).first()
-    farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == record.farmer_id).first()
+    product = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == str(record_id)).first()
+    condition = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == str(record_id)).first()
+    trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == str(record_id)).first()
+    conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == str(record_id)).first()
+    location = db.query(models.Location).filter(models.Location.location_id == str(record.location_id)).first()
+    farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == str(record.farmer_id)).first()
 
     return {
         "record_id": record.record_id,
@@ -134,34 +142,35 @@ def get_record(record_id: UUID, db: Session = Depends(get_db)):
 
 @router.get("/records")
 def list_records(
-    farm_id: UUID = None,
-    farmer_id: UUID = None,
-    status: models.RecordStatus = None,
-    from_date: datetime = None,
-    to_date: datetime = None,
+    farm_id: str = None,
+    farmer_id: str = None,
+    status: str = None,
+    from_date: str = None,
+    to_date: str = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = 0,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Record)
 
-    if farm_id:
-        query = query.filter(models.Record.farm_id == farm_id)
-    if farmer_id:
-        query = query.filter(models.Record.farmer_id == farmer_id)
-    if status:
-        query = query.filter(models.Record.status == status)
-    if from_date:
-        query = query.filter(models.Record.submitted_at >= from_date)
-    if to_date:
-        query = query.filter(models.Record.submitted_at <= to_date)
+    if farm_id and farm_id.strip():
+        query = query.filter(models.Record.farm_id == str(farm_id))
+    if farmer_id and farmer_id.strip():
+        query = query.filter(models.Record.farmer_id == str(farmer_id))
+    if status and status.strip():
+        query = query.filter(models.Record.status == models.RecordStatus(status))
+    if from_date and from_date.strip():
+        query = query.filter(models.Record.submitted_at >= datetime.fromisoformat(from_date))
+    if to_date and to_date.strip():
+        query = query.filter(models.Record.submitted_at <= datetime.fromisoformat(to_date))
 
     records = query.order_by(models.Record.submitted_at.desc()).offset(offset).limit(limit).all()
 
     result = []
     for r in records:
-        product = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == r.record_id).first()
-        location = db.query(models.Location).filter(models.Location.location_id == r.location_id).first()
+        product = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == str(r.record_id)).first()
+        location = db.query(models.Location).filter(models.Location.location_id == str(r.location_id)).first()
+        conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == str(r.record_id)).first()
         result.append({
             "record_id": r.record_id,
             "farmer_id": r.farmer_id,
@@ -175,17 +184,27 @@ def list_records(
             "quantity_unit": product.quantity_unit.value if product else "kg",
             "location": location.label if location else "Unknown",
             "location_type": location.type.value if location else "storage",
+            "confidence": conf.overall if conf else None,
         })
 
     return result
 
 @router.patch("/records/{record_id}")
 async def update_record_status(
-    record_id: UUID,
-    status: models.RecordStatus,
+    record_id: str,
+    request: dict,
     db: Session = Depends(get_db)
 ):
-    record = db.query(models.Record).filter(models.Record.record_id == record_id).first()
+    status_value = request.get("status")
+    if not status_value:
+        raise HTTPException(status_code=400, detail="status is required")
+
+    try:
+        status = models.RecordStatus(status_value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {status_value}")
+
+    record = db.query(models.Record).filter(models.Record.record_id == str(record_id)).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
 
@@ -211,14 +230,14 @@ async def update_record_status(
 
 @router.get("/records/export")
 def export_records(
-    farm_id: UUID = None,
+    farm_id: str = None,
     from_date: datetime = None,
     to_date: datetime = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Record)
     if farm_id:
-        query = query.filter(models.Record.farm_id == farm_id)
+        query = query.filter(models.Record.farm_id == str(farm_id))
     if from_date:
         query = query.filter(models.Record.submitted_at >= from_date)
     if to_date:
@@ -236,11 +255,11 @@ def export_records(
     ])
 
     for r in records:
-        prod = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == r.record_id).first()
-        cond = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == r.record_id).first()
-        trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == r.record_id).first()
-        conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == r.record_id).first()
-        loc = db.query(models.Location).filter(models.Location.location_id == r.location_id).first()
+        prod = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == str(r.record_id)).first()
+        cond = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == str(r.record_id)).first()
+        trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == str(r.record_id)).first()
+        conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == str(r.record_id)).first()
+        loc = db.query(models.Location).filter(models.Location.location_id == str(r.location_id)).first()
 
         writer.writerow([
             r.record_id, r.farmer_id, r.farm_id, r.submitted_at,

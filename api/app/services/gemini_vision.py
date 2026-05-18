@@ -7,12 +7,12 @@ logger = logging.getLogger(__name__)
 
 class GeminiVisionService:
     """
-    Service for extracting agricultural product information using Google Gemini 2.0 Flash.
+    Service for extracting agricultural product information using Google Gemini 2.5 Flash.
     """
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={self.api_key}"
+        self.endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
 
     async def analyze_image(self, image_url: str) -> Dict[str, Any]:
         """
@@ -49,7 +49,6 @@ class GeminiVisionService:
         Sends a base64-encoded image to Gemini API and returns analysis.
         """
         try:
-            # Prepare the prompt for Gemini
             prompt = (
                 "Analyze this agricultural produce image. Return a JSON object with the following keys: "
                 "product_type (e.g., Tomatoes), "
@@ -71,25 +70,41 @@ class GeminiVisionService:
                             }
                         }
                     ]
-                }],
-                "generationConfig": {
-                    "response_mime_type": "application/json",
-                }
+                }]
             }
 
-            # Call Gemini API
             async with httpx.AsyncClient() as client:
                 response = await client.post(self.endpoint, json=payload, timeout=30.0)
+                logger.info(f"Gemini response status: {response.status_code}")
+
                 if response.status_code != 200:
-                    logger.error(f"Gemini API error: {response.text}")
-                    raise Exception(f"Gemini API request failed: {response.status_code}")
+                    logger.error(f"Gemini API error {response.status_code}: {response.text}")
+                    raise Exception(f"Gemini API returned {response.status_code}")
 
                 result = response.json()
-                # Gemini returns content in a nested structure: candidates[0].content.parts[0].text
-                text_response = result['candidates'][0]['content']['parts'][0]['text']
+                logger.debug(f"Gemini raw response: {result}")
+
+                if 'candidates' not in result or not result['candidates']:
+                    logger.error(f"No candidates in Gemini response: {result}")
+                    raise Exception("Gemini returned no candidates")
+
+                text_response = result['candidates'][0]['content']['parts'][0].get('text', '').strip()
+                logger.debug(f"Gemini text response: {text_response}")
+
+                if not text_response:
+                    raise Exception("Gemini returned empty text")
 
                 import json
-                return json.loads(text_response)
+
+                # Strip markdown code fences if present
+                if text_response.startswith('```'):
+                    text_response = text_response.replace('```json', '').replace('```', '').strip()
+
+                try:
+                    return json.loads(text_response)
+                except json.JSONDecodeError as e:
+                    logger.error(f"Gemini returned non-JSON: {text_response}")
+                    raise Exception(f"Gemini response not JSON: {text_response[:100]}")
 
         except Exception as e:
             logger.error(f"Error in GeminiVisionService._send_to_gemini: {str(e)}")

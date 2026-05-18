@@ -404,3 +404,20 @@ Before deploying updates to production:
 **Last Updated**: May 2026
 **Version**: 2.0 (Design System + Accessibility + Responsiveness)
 **Deployment Target**: http://194.171.191.226:3061
+\
+
+cd docker
+docker-compose up -d
+
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+npx expo start
+
+
+
+henk_van_den_berg
+maria_jansen
+peter_de_vries
+kees_van_der_meer
+anneke_vink
+henk_smeets

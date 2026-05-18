@@ -6,7 +6,7 @@ import os
 class VisionService:
     """
     Service for extracting product information from images using a Vision Model.
-    Uses Google Gemini 2.0 Flash when API key is available.
+    Uses Google Gemini 2.5 Flash when API key is available.
     """
 
     def __init__(self, api_key: Optional[str] = None):

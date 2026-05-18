@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, TextInput, ActivityIndicator, Modal, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../services/api';
@@ -12,9 +12,9 @@ import Card from '../components/Card';
 import Header from '../components/Header';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import FeedbackModal from '../components/FeedbackModal';
-import { productTypes } from '../services/sampleData';
+import { productTypes, sampleLocations } from '../services/sampleData';
 
-const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
+const SubmissionScreen = ({ farmerId, farmId, navigation, lang = 'nl' }) => {
   const { width } = useWindowDimensions();
   const [form, setForm] = useState({
     product_type: '',
@@ -36,7 +36,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
 
-  async function loadLocations() {
+  const loadLocations = useCallback(async () => {
     if (!farmId) {
       console.warn('No farmId provided');
       return;
@@ -62,23 +62,16 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       }
     } catch (e) {
       console.error('Error loading locations:', e);
-      // Fallback to sample locations from sampleData
-      try {
-        const { sampleLocations } = require('../services/sampleData');
-        const fallback = sampleLocations.filter(loc => loc.farm_id === farmId);
-        const finalLocations = fallback.length > 0 ? fallback : sampleLocations;
-        console.log('Using fallback locations:', finalLocations);
-        setLocations(finalLocations);
-      } catch (fallbackError) {
-        console.error('Failed to load fallback locations:', fallbackError);
-        setLocations([]);
-      }
+      const fallback = sampleLocations.filter(loc => loc.farm_id === farmId);
+      const finalLocations = fallback.length > 0 ? fallback : sampleLocations;
+      console.log('Using fallback locations:', finalLocations);
+      setLocations(finalLocations);
     }
-  }
+  }, [farmId]);
 
   useEffect(() => {
     loadLocations();
-  }, [farmId]);
+  }, [loadLocations]);
 
   const handlePhotoCapture = async () => {
     setIsProcessing(true);
@@ -100,11 +93,6 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       if (result.canceled === false) {
         const localUri = result.assets[0].uri;
         setCapturedImage(localUri);
-        // Process AI in background without blocking UI
-        processPhotoWithAI(localUri).catch(e => {
-          console.error('AI processing error:', e);
-          setAiWarning(t('submission.ai_fallback', lang));
-        });
       }
       setIsProcessing(false);
     } catch (e) {
@@ -162,15 +150,35 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
     setPhotoAccepted(false);
   };
 
-  const handleKeepPhoto = () => {
+  const handleKeepPhoto = async () => {
     setShowRetakeModal(false);
-    setPhotoAccepted(true);
-    // Photo is now ready for submission
+    setAiWarning(null);
+    setIsUploading(true);
+    try {
+      await processPhotoWithAI(capturedImage);
+      setPhotoAccepted(true);
+    } catch (e) {
+      console.error('Photo processing error:', e);
+      setAiWarning(t('submission.ai_fallback', lang));
+      setPhotoAccepted(true);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSubmit = async () => {
     if (!form.location_id) {
       Alert.alert(t('common.error', lang), t('submission.location_required', lang));
+      return;
+    }
+
+    if (!form.product_type) {
+      Alert.alert(t('common.error', lang), 'Please select a product type');
+      return;
+    }
+
+    if (!form.quantity) {
+      Alert.alert(t('common.error', lang), 'Please enter a quantity');
       return;
     }
 
@@ -183,10 +191,10 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       location_id: form.location_id,
       form_fields: {
         product_type: form.product_type,
-        quantity: parseFloat(form.quantity) || 0,
+        quantity: parseFloat(form.quantity),
         quantity_unit: form.quantity_unit,
         condition: form.condition,
-        notes: form.notes,
+        notes: form.notes || null,
       },
       photo: capturedImage ? { file_url: processedPhotoUrl || capturedImage } : null,
     };
@@ -206,7 +214,18 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       setProcessedPhotoUrl(null);
       setAiResults(null);
       setPhotoAccepted(false);
+
+      // Navigate to History tab after successful submission
+      setTimeout(() => {
+        if (navigation && navigation.getParent) {
+          const parent = navigation.getParent();
+          if (parent) {
+            parent.navigate('History');
+          }
+        }
+      }, 1500);
     } catch (e) {
+      console.error('Submission error:', e);
       await offlineQueue.enqueue(payload);
       Alert.alert(t('common.error', lang), t('submission.offline_queued', lang));
     } finally {
@@ -254,6 +273,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
                         setPhotoAccepted(false);
                         setCapturedImage(null);
                         setProcessedPhotoUrl(null);
+                        setAiResults(null);
                       }}
                       fullWidth
                       size="sm"
@@ -261,6 +281,11 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
                     >
                       Change Photo
                     </Button>
+                  </View>
+                ) : isUploading ? (
+                  <View style={styles.acceptedPhotoContainer}>
+                    <ActivityIndicator color={colors.secondary} size="large" />
+                    <Text style={styles.acceptedPhotoText}>{t('submission.analyzing_ai', lang)}</Text>
                   </View>
                 ) : (
                   <>
@@ -272,6 +297,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
                         fullWidth
                         size="md"
                         style={styles.photoActionButton}
+                        disabled={isUploading}
                       >
                         🔄 Retake
                       </Button>
@@ -281,6 +307,8 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
                         fullWidth
                         size="md"
                         style={styles.photoActionButton}
+                        disabled={isUploading}
+                        loading={isUploading}
                       >
                         ✓ Use Photo
                       </Button>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -33,6 +33,8 @@ class FormFields(BaseModel):
     notes: Optional[str] = Field(None, max_length=200)
 
 class FarmerSubmission(BaseModel):
+    model_config = ConfigDict(str_to_lower=False, extra='ignore')
+
     farmer_id: UUID
     submitted_at: datetime
     input_method: InputMethod

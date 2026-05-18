@@ -37,14 +37,14 @@ function HomeStack({ farmerId, farmId, lang, setLang, isOffline }) {
   );
 }
 
-function SubmissionStack({ farmerId, farmId, lang }) {
+function SubmissionStack({ farmerId, farmId, lang, navigation }) {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="SubmissionTab"
         options={{ title: 'Log Harvest' }}
       >
-        {() => <SubmissionScreen farmerId={farmerId} farmId={farmId} lang={lang} />}
+        {(props) => <SubmissionScreen {...props} farmerId={farmerId} farmId={farmId} lang={lang} />}
       </Stack.Screen>
     </Stack.Navigator>
   );

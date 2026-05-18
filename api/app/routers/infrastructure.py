@@ -10,8 +10,30 @@ from datetime import datetime, timezone
 
 router = APIRouter()
 
+@router.get("/farmer/{farmer_id}")
+def get_farmer(farmer_id: str, db: Session = Depends(get_db)):
+    farmer = None
+
+    # Try to parse as UUID first
+    try:
+        uuid_id = UUID(farmer_id)
+        farmer = db.query(models.Farmer).filter(models.Farmer.farmer_id == uuid_id).first()
+    except ValueError:
+        # If not a valid UUID, search by username
+        farmer = db.query(models.Farmer).filter(models.Farmer.username == farmer_id).first()
+
+    if not farmer:
+        raise HTTPException(status_code=404, detail="Farmer not found")
+    return {
+        "farmer_id": farmer.farmer_id,
+        "farm_id": farmer.farm_id,
+        "name": farmer.name,
+        "phone_number": farmer.phone_number,
+        "preferred_language": farmer.preferred_language
+    }
+
 @router.get("/locations", response_model=schemas.LocationsResponse)
-def get_locations(farm_id: UUID, db: Session = Depends(get_db)):
+def get_locations(farm_id: str, db: Session = Depends(get_db)):
     locations = db.query(models.Location).filter(models.Location.farm_id == farm_id, models.Location.active == True).all()
     return {
         "locations": [
@@ -139,10 +161,13 @@ def seed_farms(db: Session = Depends(get_db)):
             db.add(location)
 
         # Add farmers
-        for farmer_data in farm_data["farmers"]:
+        for i, farmer_data in enumerate(farm_data["farmers"]):
+            simple_names = ["mike", "john", "maria", "peter", "kees", "anna"]
+            username = simple_names[i % len(simple_names)] if "username" not in farmer_data else farmer_data.get("username")
             farmer = models.Farmer(
                 farm_id=farm.farm_id,
                 name=farmer_data["name"],
+                username=username,
                 phone_number=farmer_data.get("phone_number"),
                 preferred_language="nl",
                 created_at=now
@@ -151,6 +176,7 @@ def seed_farms(db: Session = Depends(get_db)):
             db.flush()
             created_farmers.append({
                 "farmer_id": str(farmer.farmer_id),
+                "username": username,
                 "name": farmer.name,
                 "farm_id": str(farm.farm_id),
                 "farm_name": farm.name
