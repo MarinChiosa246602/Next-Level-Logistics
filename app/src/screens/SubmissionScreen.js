@@ -6,13 +6,13 @@ import { offlineQueue } from '../services/offlineQueue';
 import { feedbackService } from '../services/feedbackService';
 import { colors, typography, spacing, radius } from '../theme';
 import { t } from '../constants/translations';
-import { ConditionSelector } from '../components/Selectors';
+import { ConditionSelector, ProductTypeSelector, LocationSelector, UnitSelector } from '../components/Selectors';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Header from '../components/Header';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import FeedbackModal from '../components/FeedbackModal';
-import { Picker } from '@react-native-picker/picker';
+import { productTypes } from '../services/sampleData';
 
 const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
   const { width } = useWindowDimensions();
@@ -28,18 +28,51 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [aiWarning, setAiWarning] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
+  const [processedPhotoUrl, setProcessedPhotoUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showRetakeModal, setShowRetakeModal] = useState(false);
+  const [photoAccepted, setPhotoAccepted] = useState(false);
   const [aiResults, setAiResults] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
 
   async function loadLocations() {
+    if (!farmId) {
+      console.warn('No farmId provided');
+      return;
+    }
+
     try {
       const data = await api.getLocations(farmId);
-      setLocations(data.locations);
+      console.log('API response:', data);
+
+      let locationsArray = [];
+      if (Array.isArray(data)) {
+        locationsArray = data;
+      } else if (data && Array.isArray(data.locations)) {
+        locationsArray = data.locations;
+      }
+
+      console.log('Parsed locations:', locationsArray);
+
+      if (locationsArray.length > 0) {
+        setLocations(locationsArray);
+      } else {
+        throw new Error('No locations returned from API');
+      }
     } catch (e) {
-      Alert.alert(t('common.error', lang), t('common.error', lang));
+      console.error('Error loading locations:', e);
+      // Fallback to sample locations from sampleData
+      try {
+        const { sampleLocations } = require('../services/sampleData');
+        const fallback = sampleLocations.filter(loc => loc.farm_id === farmId);
+        const finalLocations = fallback.length > 0 ? fallback : sampleLocations;
+        console.log('Using fallback locations:', finalLocations);
+        setLocations(finalLocations);
+      } catch (fallbackError) {
+        console.error('Failed to load fallback locations:', fallbackError);
+        setLocations([]);
+      }
     }
   }
 
@@ -59,7 +92,6 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -68,11 +100,11 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
       if (result.canceled === false) {
         const localUri = result.assets[0].uri;
         setCapturedImage(localUri);
-        setShowRetakeModal(true);
-        const uploadedUrl = await processPhotoWithAI(localUri);
-        if (uploadedUrl) {
-          setCapturedImage(uploadedUrl);
-        }
+        // Process AI in background without blocking UI
+        processPhotoWithAI(localUri).catch(e => {
+          console.error('AI processing error:', e);
+          setAiWarning(t('submission.ai_fallback', lang));
+        });
       }
       setIsProcessing(false);
     } catch (e) {
@@ -95,9 +127,11 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
 
       const data = await api.uploadPhoto(formData);
       const fileUrl = data.file_url;
+      const filePath = data.file_path;
 
-      const aiData = await api.analyzePhoto(fileUrl);
+      const aiData = await api.analyzePhoto(fileUrl, filePath);
 
+      setProcessedPhotoUrl(fileUrl);
       setAiResults(aiData);
       setForm({
         ...form,
@@ -122,12 +156,16 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setProcessedPhotoUrl(null);
     setShowRetakeModal(false);
     setAiResults(null);
+    setPhotoAccepted(false);
   };
 
   const handleKeepPhoto = () => {
     setShowRetakeModal(false);
+    setPhotoAccepted(true);
+    // Photo is now ready for submission
   };
 
   const handleSubmit = async () => {
@@ -150,7 +188,7 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
         condition: form.condition,
         notes: form.notes,
       },
-      photo: capturedImage ? { file_url: capturedImage } : null,
+      photo: capturedImage ? { file_url: processedPhotoUrl || capturedImage } : null,
     };
 
     try {
@@ -165,7 +203,9 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
         notes: '',
       });
       setCapturedImage(null);
+      setProcessedPhotoUrl(null);
       setAiResults(null);
+      setPhotoAccepted(false);
     } catch (e) {
       await offlineQueue.enqueue(payload);
       Alert.alert(t('common.error', lang), t('submission.offline_queued', lang));
@@ -205,50 +245,63 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
             {capturedImage && (
               <View style={styles.previewContainer}>
                 <Image source={{ uri: capturedImage }} style={styles.previewImage} />
-                <Text style={styles.previewLabel} allowFontScaling={true}>{t('submission.photo_preview', lang)}</Text>
+                {photoAccepted ? (
+                  <View style={styles.acceptedPhotoContainer}>
+                    <Text style={styles.acceptedPhotoText}>✓ Photo Accepted</Text>
+                    <Button
+                      variant="secondary"
+                      onPress={() => {
+                        setPhotoAccepted(false);
+                        setCapturedImage(null);
+                        setProcessedPhotoUrl(null);
+                      }}
+                      fullWidth
+                      size="sm"
+                      style={{ marginTop: spacing.md }}
+                    >
+                      Change Photo
+                    </Button>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.previewLabel} allowFontScaling={true}>{t('submission.photo_preview', lang)}</Text>
+                    <View style={styles.photoActionButtons}>
+                      <Button
+                        variant="error"
+                        onPress={handleRetake}
+                        fullWidth
+                        size="md"
+                        style={styles.photoActionButton}
+                      >
+                        🔄 Retake
+                      </Button>
+                      <Button
+                        variant="success"
+                        onPress={handleKeepPhoto}
+                        fullWidth
+                        size="md"
+                        style={styles.photoActionButton}
+                      >
+                        ✓ Use Photo
+                      </Button>
+                    </View>
+                  </>
+                )}
               </View>
             )}
             {aiWarning && <Text style={styles.warningText} allowFontScaling={true}>⚠️ {aiWarning}</Text>}
           </Card>
-
-          <Modal visible={showRetakeModal} animationType="slide" transparent={true}>
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                {capturedImage && <Image source={{ uri: capturedImage }} style={styles.modalImage} />}
-                <View style={styles.modalButtons}>
-                  <Button variant="error" onPress={handleRetake} fullWidth style={styles.modalButtonMargin}
-                    accessibilityLabel="Retake photo"
-                    accessibilityHint="Discards current photo and opens camera again">
-                    {t('submission.retake', lang)}
-                  </Button>
-                  <Button variant="success" onPress={handleKeepPhoto} fullWidth
-                    accessibilityLabel="Keep photo"
-                    accessibilityHint="Confirms the current photo for submission">
-                    {t('submission.keep', lang)}
-                  </Button>
-                </View>
-              </View>
-            </View>
-          </Modal>
 
           <Card style={styles.formCard}>
             <Text style={styles.sectionTitle}>📋 Form Details</Text>
 
             <View>
               <Text style={styles.label}>{t('submission.product_type', lang)}</Text>
-              <Picker
-                style={styles.picker}
-                selectedValue={form.product_type}
-                onValueChange={val => setForm({...form, product_type: val})}
-                accessible={true}
-                accessibilityLabel="Select product type"
-              >
-                <Picker.Item label="Select product..." value="" />
-                <Picker.Item label="Tomatoes" value="Tomatoes" />
-                <Picker.Item label="Carrots" value="Carrots" />
-                <Picker.Item label="Apples" value="Apples" />
-                <Picker.Item label="Wheat" value="Wheat" />
-              </Picker>
+              <ProductTypeSelector
+                value={form.product_type}
+                onChange={val => setForm({...form, product_type: val})}
+                options={productTypes}
+              />
             </View>
 
             <View style={styles.row}>
@@ -268,18 +321,10 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
               </View>
               <View style={styles.col}>
                 <Text style={styles.label}>{t('submission.unit', lang)}</Text>
-                <Picker
-                  style={styles.picker}
-                  selectedValue={form.quantity_unit}
-                  onValueChange={val => setForm({...form, quantity_unit: val})}
-                  accessible={true}
-                  accessibilityLabel="Select unit"
-                >
-                  <Picker.Item label="kg" value="kg" />
-                  <Picker.Item label="Crates" value="crates" />
-                  <Picker.Item label="Units" value="units" />
-                  <Picker.Item label="Boxes" value="boxes" />
-                </Picker>
+                <UnitSelector
+                  value={form.quantity_unit}
+                  onChange={val => setForm({...form, quantity_unit: val})}
+                />
               </View>
             </View>
 
@@ -295,18 +340,15 @@ const SubmissionScreen = ({ farmerId, farmId, lang = 'nl' }) => {
 
             <View>
               <Text style={styles.label}>{t('submission.location', lang)}</Text>
-              <Picker
-                style={styles.picker}
-                selectedValue={form.location_id}
-                onValueChange={val => setForm({...form, location_id: val})}
-                accessible={true}
-                accessibilityLabel="Select location"
-              >
-                <Picker.Item label="Select a location..." value="" />
-                {locations.map(loc => (
-                  <Picker.Item key={loc.location_id} label={loc.label} value={loc.location_id} />
-                ))}
-              </Picker>
+              {locations.length === 0 ? (
+                <Text style={styles.errorText}>⚠️ No locations available. Please check your farm setup.</Text>
+              ) : (
+                <LocationSelector
+                  value={form.location_id}
+                  onChange={val => setForm({...form, location_id: val})}
+                  locations={locations}
+                />
+              )}
             </View>
 
             <View>
@@ -434,6 +476,14 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: colors.error,
   },
+  photoActionButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  photoActionButton: {
+    flex: 1,
+  },
   formCard: {
     marginBottom: spacing.lg,
   },
@@ -452,13 +502,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     fontSize: 16,
     color: colors.text.primary,
-  },
-  picker: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.white,
-    height: 50,
   },
   row: {
     flexDirection: 'row',
@@ -499,6 +542,7 @@ const styles = StyleSheet.create({
   },
   feedbackButton: {
     marginTop: spacing.lg,
+    marginBottom: spacing.xl,
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderTopWidth: 1,
@@ -508,6 +552,16 @@ const styles = StyleSheet.create({
     ...typography.body2,
     color: colors.primary,
     fontWeight: '600',
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    fontWeight: '500',
+    backgroundColor: '#FFEBEE',
+    padding: spacing.md,
+    borderRadius: radius.lg,
   },
 });
 

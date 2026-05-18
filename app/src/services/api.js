@@ -1,10 +1,32 @@
+import { sampleLocations, productTypes } from './sampleData';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/v1';
 
 export const api = {
   async getLocations(farmId) {
-    const response = await fetch(`${API_BASE_URL}/locations?farm_id=${farmId}`);
-    if (!response.ok) throw new Error('Failed to fetch locations');
-    return response.json();
+    try {
+      if (!farmId) {
+        throw new Error('farmId is required');
+      }
+      const url = `${API_BASE_URL}/locations?farm_id=${farmId}`;
+      console.log('Fetching locations from:', url);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch locations`);
+      }
+      const data = await response.json();
+      console.log('Locations API response:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching locations:', error.message);
+      // Fallback to sample data
+      const fallbackLocations = sampleLocations.filter(loc => loc.farm_id === farmId);
+      const fallbackData = {
+        locations: fallbackLocations.length > 0 ? fallbackLocations : sampleLocations
+      };
+      console.log('Using fallback locations:', fallbackData);
+      return fallbackData;
+    }
   },
 
   async submitRecord(payload) {
@@ -20,46 +42,22 @@ export const api = {
   },
 
   async uploadPhoto(formData) {
-    // For now, we'll simulate photo upload by returning a mock URL
-    // In production, this would upload to a storage service like MinIO
-    return {
-      file_url: `https://example.com/photos/${Date.now()}.jpg`,
-      success: true
-    };
-  },
-
-  async analyzePhoto(fileUrl) {
-    // For now, return mock AI analysis
-    // In production, this would call the backend AI processing
-    return {
-      product_type: "Tomatoes",
-      estimated_quantity: 25,
-      quantity_unit: "kg",
-      condition_rating: "good",
-      confidence: {
-        overall: 0.85,
-        product_type: 0.9,
-        quantity: 0.8,
-        condition: 0.85
-      }
-    };
-  },
-
-  async uploadPhoto(formData) {
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       body: formData,
-      headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (!response.ok) throw new Error('Photo upload failed');
     return response.json();
   },
 
-  async analyzePhoto(imageUrl) {
+  async analyzePhoto(imageUrl, filePath = null) {
     const response = await fetch(`${API_BASE_URL}/analyze-photo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_url: imageUrl }),
+      body: JSON.stringify({
+        image_url: imageUrl,
+        file_path: filePath
+      }),
     });
     if (!response.ok) throw new Error('AI analysis failed');
     return response.json();

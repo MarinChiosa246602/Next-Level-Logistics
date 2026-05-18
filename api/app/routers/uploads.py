@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 import shutil
 import os
 import uuid
+import base64
 from typing import Dict, Any
 from app.pipeline.vision import VisionService
 
@@ -23,10 +24,11 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # In a real app, this would be an S3 URL
+        # Return the local file path for now
+        # In production, this would be an S3 URL or similar
         file_url = f"http://localhost:8000/static/uploads/{os.path.basename(file_path)}"
 
-        return {"file_url": file_url}
+        return {"file_url": file_url, "file_path": file_path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
@@ -38,16 +40,31 @@ async def analyze_photo(payload: Dict[str, Any] = Body(...)):
 
     try:
         vision_service = VisionService()
-        analysis = await vision_service.analyze_image(image_url)
 
-        # The frontend expects product_type, estimated_quantity, quantity_unit, condition, and confidence
+        # If the URL points to a local file, read it and convert to base64
+        if image_url.startswith("http://localhost"):
+            file_path = payload.get("file_path")
+            if not file_path or not os.path.exists(file_path):
+                raise HTTPException(status_code=400, detail="Local file not found")
+
+            # Read the file and convert to base64
+            with open(file_path, "rb") as f:
+                image_data = f.read()
+                base64_image = base64.b64encode(image_data).decode('utf-8')
+
+            analysis = await vision_service.analyze_image_base64(base64_image)
+        else:
+            # Use URL-based analysis for remote images
+            analysis = await vision_service.analyze_image(image_url)
+
+        # Return the formatted response
         return {
-            "product_type": analysis["product_type"],
-            "estimated_quantity": analysis["estimated_quantity"],
-            "quantity_unit": "kg", # Default for mock
-            "condition_rating": analysis["condition_rating"],
-            "confidence": analysis["confidence"],
-            "overall": sum(analysis["confidence"].values()) / len(analysis["confidence"])
+            "product_type": analysis.get("product_type"),
+            "estimated_quantity": analysis.get("estimated_quantity"),
+            "quantity_unit": "kg",
+            "condition_rating": analysis.get("condition_rating"),
+            "confidence": analysis.get("confidence", {})
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+

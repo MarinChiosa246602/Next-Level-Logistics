@@ -28,14 +28,35 @@ class GeminiVisionService:
                 image_bytes = image_resp.content
                 base64_image = base64.b64encode(image_bytes).decode('utf-8')
 
-            # 2. Prepare the prompt for Gemini
+            return await self._send_to_gemini(base64_image)
+
+        except Exception as e:
+            logger.error(f"Error in GeminiVisionService.analyze_image: {str(e)}")
+            raise e
+
+    async def analyze_image_base64(self, base64_image: str) -> Dict[str, Any]:
+        """
+        Analyzes a base64-encoded image using Gemini.
+        """
+        try:
+            return await self._send_to_gemini(base64_image)
+        except Exception as e:
+            logger.error(f"Error in GeminiVisionService.analyze_image_base64: {str(e)}")
+            raise e
+
+    async def _send_to_gemini(self, base64_image: str) -> Dict[str, Any]:
+        """
+        Sends a base64-encoded image to Gemini API and returns analysis.
+        """
+        try:
+            # Prepare the prompt for Gemini
             prompt = (
                 "Analyze this agricultural produce image. Return a JSON object with the following keys: "
                 "product_type (e.g., Tomatoes), "
                 "category (e.g., vegetables, fruit, grain, dairy), "
                 "estimated_quantity (as a float), "
                 "condition_rating (one of: good, mixed, damaged), "
-                "confidence (a dict with keys: product_type, quantity, condition, overall, each as a float 0.0-1.0). "
+                "confidence (a dict with keys: product_type, quantity, condition, each as a float 0.0-1.0). "
                 "Only return the JSON object, no other text."
             )
 
@@ -56,9 +77,9 @@ class GeminiVisionService:
                 }
             }
 
-            # 3. Call Gemini API
+            # Call Gemini API
             async with httpx.AsyncClient() as client:
-                response = await client.post(self.endpoint, json=payload)
+                response = await client.post(self.endpoint, json=payload, timeout=30.0)
                 if response.status_code != 200:
                     logger.error(f"Gemini API error: {response.text}")
                     raise Exception(f"Gemini API request failed: {response.status_code}")
@@ -71,5 +92,5 @@ class GeminiVisionService:
                 return json.loads(text_response)
 
         except Exception as e:
-            logger.error(f"Error in GeminiVisionService.analyze_image: {str(e)}")
+            logger.error(f"Error in GeminiVisionService._send_to_gemini: {str(e)}")
             raise e

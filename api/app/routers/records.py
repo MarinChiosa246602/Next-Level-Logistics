@@ -135,6 +135,7 @@ def get_record(record_id: UUID, db: Session = Depends(get_db)):
 @router.get("/records")
 def list_records(
     farm_id: UUID = None,
+    farmer_id: UUID = None,
     status: models.RecordStatus = None,
     from_date: datetime = None,
     to_date: datetime = None,
@@ -146,6 +147,8 @@ def list_records(
 
     if farm_id:
         query = query.filter(models.Record.farm_id == farm_id)
+    if farmer_id:
+        query = query.filter(models.Record.farmer_id == farmer_id)
     if status:
         query = query.filter(models.Record.status == status)
     if from_date:
@@ -155,17 +158,26 @@ def list_records(
 
     records = query.order_by(models.Record.submitted_at.desc()).offset(offset).limit(limit).all()
 
-    return [
-        {
+    result = []
+    for r in records:
+        product = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == r.record_id).first()
+        location = db.query(models.Location).filter(models.Location.location_id == r.location_id).first()
+        result.append({
             "record_id": r.record_id,
             "farmer_id": r.farmer_id,
             "farm_id": r.farm_id,
             "submitted_at": r.submitted_at,
+            "created_at": r.created_at,
             "status": r.status.value,
             "photo_url": r.photo_url,
-            "product_type": db.query(models.RecordProduct).filter(models.RecordProduct.record_id == r.record_id).scalar_subquery().product_type if False else None, # Placeholder
-        } for r in records
-    ]
+            "product_type": product.product_type if product else "Unknown",
+            "quantity": product.quantity if product else 0,
+            "quantity_unit": product.quantity_unit.value if product else "kg",
+            "location": location.label if location else "Unknown",
+            "location_type": location.type.value if location else "storage",
+        })
+
+    return result
 
 @router.patch("/records/{record_id}")
 async def update_record_status(
