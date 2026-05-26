@@ -8,6 +8,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import SubmissionScreen from './src/screens/SubmissionScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import LicensePlateScreen from './src/screens/LicensePlateScreen';
 import { colors, spacing } from './src/theme';
 
 const Stack = createStackNavigator();
@@ -63,6 +64,19 @@ function HistoryStack({ farmerId, lang }) {
   );
 }
 
+function LicensePlateStack({ lang }) {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="LicensePlateTab"
+        options={{ title: 'Boot Space Lookup' }}
+      >
+        {() => <LicensePlateScreen lang={lang} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs({ farmerId, farmId, lang, setLang, isOffline }) {
   return (
     <Tab.Navigator
@@ -95,6 +109,16 @@ function MainTabs({ farmerId, farmId, lang, setLang, isOffline }) {
         }}
       >
         {() => <SubmissionStack farmerId={farmerId} farmId={farmId} lang={lang} />}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="LicensePlate"
+        options={{
+          tabBarLabel: 'Boot Space',
+          tabBarIcon: ({ color }) => <TabIcon name="🚗" color={color} />,
+        }}
+      >
+        {() => <LicensePlateStack lang={lang} />}
       </Tab.Screen>
 
       <Tab.Screen

@@ -21,6 +21,13 @@ export const translations = {
       photo_unclear: 'Foto onduidelijk — vul handmatig in',
       ai_processing: 'AI analyseert foto...',
     },
+    licensePlate: {
+      title: 'Voertuig Laadvolume',
+      plate_label: 'Nederlands Kenteken',
+      error_empty: 'Voer alstublieft een kenteken in',
+      error_not_found: 'Voertuig niet gevonden',
+      camera_permission_denied: 'Camerapermissie vereist',
+    },
     common: {
       good: 'Goed',
       mixed: 'Gemengd',
@@ -54,6 +61,13 @@ export const translations = {
       photo_unclear: 'Photo unclear — please fill manually',
       ai_processing: 'AI analyzing photo...',
     },
+    licensePlate: {
+      title: 'Vehicle Boot Space',
+      plate_label: 'Dutch License Plate',
+      error_empty: 'Please enter a license plate',
+      error_not_found: 'Vehicle not found',
+      camera_permission_denied: 'Camera permission is required',
+    },
     common: {
       good: 'Good',
       mixed: 'Mixed',
@@ -86,6 +100,13 @@ export const translations = {
       submit: 'Envoyer',
       photo_unclear: 'Photo floue — veuillez remplir manuellement',
       ai_processing: 'IA analyse la photo...',
+    },
+    licensePlate: {
+      title: 'Espace de Chargement du Véhicule',
+      plate_label: 'Plaque d\'Immatriculation Néerlandaise',
+      error_empty: 'Veuillez entrer une plaque d\'immatriculation',
+      error_not_found: 'Véhicule non trouvé',
+      camera_permission_denied: 'Permission d\'accès à la caméra requise',
     },
     common: {
       good: 'Bon',
