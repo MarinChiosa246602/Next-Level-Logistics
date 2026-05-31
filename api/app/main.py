@@ -1,16 +1,26 @@
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+# Load .env FIRST, before importing routers that depend on it
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routers import records, infrastructure, uploads, rdw_vehicles
-from dotenv import load_dotenv
-import os
 import logging
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+# Ensure rdw_vehicles logs are visible
+logging.getLogger("app.routers.rdw_vehicles").setLevel(logging.DEBUG)
+
+logger.info(f"Loading .env from: {env_path}")
+logger.info(f"GEMINI_API_KEY is set: {bool(os.getenv('GEMINI_API_KEY'))}")
 
 app = FastAPI(title="Farmer Data Collection System API")
 

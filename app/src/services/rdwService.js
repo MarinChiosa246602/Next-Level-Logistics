@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.6:8000/v1';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.6:9000/v1';
 
 export const rdwService = {
   formatLicensePlate(plate) {

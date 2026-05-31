@@ -9,10 +9,16 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# Initialize Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# Ensure Gemini is configured at import time
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+    logger.info("Gemini API configured at import time")
+else:
+    logger.warning("GEMINI_API_KEY not found at import time")
+
+# Lazy configuration flag for runtime fallback
+_gemini_configured = False
 
 router = APIRouter()
 
@@ -38,8 +44,9 @@ def format_license_plate(plate: str) -> str:
 
 
 async def get_boot_capacity_from_gemini(brand: str, model: str, year: Optional[int]) -> Optional[float]:
-    """Query Gemini AI for vehicle boot capacity in liters"""
-    if not GEMINI_API_KEY:
+    """Query Gemini AI for vehicle boot capacity in cubic meters"""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
         logger.warning("Gemini API key not configured")
         return None
 
@@ -47,18 +54,27 @@ async def get_boot_capacity_from_gemini(brand: str, model: str, year: Optional[i
         year_str = f" {year}" if year else ""
         prompt = f"What is the boot/trunk capacity in liters for a {brand} {model}{year_str}? Please respond with just the number (e.g., '450' or '480'). If unsure, provide your best estimate."
 
+        logger.info(f"Querying Gemini for {brand} {model}...")
         model_obj = genai.GenerativeModel("gemini-2.5-flash")
         response = model_obj.generate_content(prompt)
 
-        if response.text:
+        logger.info(f"Gemini response received: {response}")
+        if response and response.text:
+            logger.info(f"Gemini raw response for {brand} {model}: '{response.text}'")
             # Extract number from response
             numbers = re.findall(r'\d+', response.text)
+            logger.info(f"Extracted numbers: {numbers}")
             if numbers:
-                boot_capacity = float(numbers[0])
-                logger.info(f"Gemini boot capacity for {brand} {model}: {boot_capacity}L")
-                return boot_capacity
+                boot_capacity_liters = float(numbers[0])
+                boot_capacity_m3 = boot_capacity_liters / 1000  # Convert liters to m³
+                logger.info(f"Gemini boot capacity for {brand} {model}: {boot_capacity_liters}L = {boot_capacity_m3}m³")
+                return boot_capacity_m3
+            else:
+                logger.warning(f"No numbers extracted from Gemini response: {response.text}")
+        else:
+            logger.warning(f"Gemini returned empty response for {brand} {model}")
     except Exception as e:
-        logger.error(f"Error querying Gemini for boot capacity: {str(e)}")
+        logger.error(f"Error querying Gemini for boot capacity: {str(e)}", exc_info=True)
         return None
 
     return None

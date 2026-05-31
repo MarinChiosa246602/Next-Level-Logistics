@@ -8,10 +8,13 @@ import { t } from '../constants/translations';
 import { rdwService } from '../services/rdwService';
 
 let BarCodeScanner = null;
+let scannerAvailable = false;
+
 try {
   BarCodeScanner = require('expo-barcode-scanner').BarCodeScanner;
+  scannerAvailable = true;
 } catch (e) {
-  console.warn('BarCodeScanner not available:', e.message);
+  scannerAvailable = false;
 }
 
 const LicensePlateScreen = ({ lang = 'nl' }) => {
@@ -34,6 +37,7 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
 
     try {
       const data = await rdwService.getVehicleData(licensePlate);
+      console.log('bootCapacity value:', data.bootCapacity, 'type:', typeof data.bootCapacity);
       setVehicleData(data);
     } catch (err) {
       setError(err.message || t('licensePlate.error_not_found', lang, 'Vehicle not found'));
@@ -43,7 +47,7 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
   };
 
   const handleScannerToggle = async () => {
-    if (!BarCodeScanner) {
+    if (!scannerAvailable) {
       Alert.alert(
         t('common.error', lang),
         'Barcode scanner is not available in this environment. Please enter the license plate manually.'
@@ -81,23 +85,38 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
   };
 
   const calculateBootVolumesInfo = (bootCapacity) => {
+    console.log('calculateBootVolumesInfo called with:', bootCapacity, 'type:', typeof bootCapacity);
+
     if (!bootCapacity || bootCapacity === 'Not available' || bootCapacity === 'Not specified') {
+      console.log('Returning null - bootCapacity is falsy or special string');
       return null;
     }
 
-    const capacity = parseInt(bootCapacity);
-    if (isNaN(capacity)) return null;
+    const capacity = parseFloat(bootCapacity);
+    console.log('Parsed capacity:', capacity, 'isNaN:', isNaN(capacity));
 
-    const boxVolume = 0.02; // 0.02m³ per box (standard logistics box)
-    const cartonVolume = 0.003; // 0.003m³ per carton
+    if (isNaN(capacity)) {
+      console.log('Parsed capacity is NaN, returning null');
+      return null;
+    }
 
-    return {
+    const capacityLiters = capacity * 1000;
+    const boxVolume = 0.02;
+    const cartonVolume = 0.003;
+    const palletVolume = 1.0;
+
+    const result = {
+      liters: Math.round(capacityLiters),
       boxes: Math.floor(capacity / boxVolume),
       cartons: Math.floor(capacity / cartonVolume),
+      pallets: Math.floor(capacity / palletVolume),
     };
+
+    console.log('calculateBootVolumesInfo result:', result);
+    return result;
   };
 
-  if (scannerActive && BarCodeScanner) {
+  if (scannerActive && scannerAvailable && BarCodeScanner) {
     return (
       <View style={styles.container}>
         <BarCodeScanner
@@ -153,7 +172,7 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
                 🔍 Search
               </Button>
 
-              {BarCodeScanner && (
+              {scannerAvailable && (
                 <Button
                   onPress={handleScannerToggle}
                   disabled={isLoading}
@@ -194,7 +213,7 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Year:</Text>
-                <Text style={styles.detailValue}>{vehicleData.year}</Text>
+                <Text style={styles.detailValue}>{vehicleData.year || 'N/A'}</Text>
               </View>
 
               <View style={styles.divider} />
@@ -204,14 +223,21 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
               <View style={styles.bootInfoContainer}>
                 <Text style={styles.bootCapacityLabel}>Total Cargo Volume:</Text>
                 <Text style={styles.bootCapacityValue}>
-                  {vehicleData.bootCapacity} m³
+                  {(() => {
+                    const volInfo = calculateBootVolumesInfo(vehicleData.bootCapacity);
+                    console.log('Display - volInfo:', volInfo);
+                    return `${volInfo?.liters || 'N/A'} L`;
+                  })()}
+                </Text>
+                <Text style={styles.bootCapacitySubtext}>
+                  ({vehicleData.bootCapacity || 'N/A'} m³)
                 </Text>
               </View>
 
               {calculateBootVolumesInfo(vehicleData.bootCapacity) && (
                 <View style={styles.volumesGrid}>
                   <View style={styles.volumeCard}>
-                    <Text style={styles.volumeLabel}>Standard Boxes</Text>
+                    <Text style={styles.volumeLabel}>📦 Boxes</Text>
                     <Text style={styles.volumeNumber}>
                       {calculateBootVolumesInfo(vehicleData.bootCapacity).boxes}
                     </Text>
@@ -219,11 +245,19 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
                   </View>
 
                   <View style={styles.volumeCard}>
-                    <Text style={styles.volumeLabel}>Cartons</Text>
+                    <Text style={styles.volumeLabel}>📫 Cartons</Text>
                     <Text style={styles.volumeNumber}>
                       {calculateBootVolumesInfo(vehicleData.bootCapacity).cartons}
                     </Text>
                     <Text style={styles.volumeNote}>(0.003m³ each)</Text>
+                  </View>
+
+                  <View style={styles.volumeCard}>
+                    <Text style={styles.volumeLabel}>📦 Pallets</Text>
+                    <Text style={styles.volumeNumber}>
+                      {calculateBootVolumesInfo(vehicleData.bootCapacity).pallets}
+                    </Text>
+                    <Text style={styles.volumeNote}>(1m³ each)</Text>
                   </View>
                 </View>
               )}
@@ -245,28 +279,28 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Max Weight:</Text>
                 <Text style={styles.detailValue}>
-                  {vehicleData.maxWeight} kg
+                  {vehicleData.maxWeight ? `${vehicleData.maxWeight} kg` : 'N/A'}
                 </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Seats:</Text>
-                <Text style={styles.detailValue}>{vehicleData.seats}</Text>
+                <Text style={styles.detailValue}>{vehicleData.seats || 'N/A'}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Doors:</Text>
-                <Text style={styles.detailValue}>{vehicleData.doors}</Text>
+                <Text style={styles.detailValue}>{vehicleData.doors || 'N/A'}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Color:</Text>
-                <Text style={styles.detailValue}>{vehicleData.color}</Text>
+                <Text style={styles.detailValue}>{vehicleData.color || 'N/A'}</Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Axles:</Text>
-                <Text style={styles.detailValue}>{vehicleData.axles}</Text>
+                <Text style={styles.detailValue}>{vehicleData.axles || 'N/A'}</Text>
               </View>
 
               <Button
@@ -398,13 +432,21 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
   },
+  bootCapacitySubtext: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
+  },
   volumesGrid: {
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.md,
+    flexWrap: 'wrap',
   },
   volumeCard: {
     flex: 1,
+    minWidth: '30%',
     backgroundColor: colors.gray50,
     padding: spacing.md,
     borderRadius: radius.lg,
