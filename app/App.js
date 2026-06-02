@@ -9,6 +9,10 @@ import HomeScreen from './src/screens/HomeScreen';
 import SubmissionScreen from './src/screens/SubmissionScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import LicensePlateScreen from './src/screens/LicensePlateScreen';
+import MyCargoOffersScreen from './src/screens/MyCargoOffersScreen';
+import AvailableCargoScreen from './src/screens/AvailableCargoScreen';
+import CargoOfferCreationScreen from './src/screens/CargoOfferCreationScreen';
+import CargoRouteMapScreen from './src/screens/CargoRouteMapScreen';
 import { colors, spacing } from './src/theme';
 
 const Stack = createStackNavigator();
@@ -77,6 +81,37 @@ function LicensePlateStack({ lang }) {
   );
 }
 
+function CargoMarketplaceStack({ farmerId }) {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="MyOffersTab"
+        options={{ title: 'Cargo Marketplace' }}
+      >
+        {() => <MyCargoOffersScreen farmerId={farmerId} />}
+      </Stack.Screen>
+      <Stack.Screen
+        name="CargoOfferCreation"
+        options={{ title: 'Create Offer' }}
+      >
+        {() => <CargoOfferCreationScreen />}
+      </Stack.Screen>
+      <Stack.Screen
+        name="AvailableCargo"
+        options={{ title: 'Available Cargo' }}
+      >
+        {() => <AvailableCargoScreen />}
+      </Stack.Screen>
+      <Stack.Screen
+        name="CargoRouteMap"
+        options={{ title: 'Route Details' }}
+      >
+        {() => <CargoRouteMapScreen />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs({ farmerId, farmId, lang, setLang, isOffline }) {
   return (
     <Tab.Navigator
@@ -129,6 +164,16 @@ function MainTabs({ farmerId, farmId, lang, setLang, isOffline }) {
         }}
       >
         {() => <HistoryStack farmerId={farmerId} lang={lang} />}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="CargoMarketplace"
+        options={{
+          tabBarLabel: 'Cargo',
+          tabBarIcon: ({ color }) => <TabIcon name="🚚" color={color} />,
+        }}
+      >
+        {() => <CargoMarketplaceStack farmerId={farmerId} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
