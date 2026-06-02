@@ -1,12 +1,30 @@
-import { sampleLocations, productTypes } from './sampleData';
+import { sampleLocations, productTypes, sampleFarms } from './sampleData';
+
+const sampleFarmers = [
+  {
+    farmer_id: '00000000-0000-0000-0000-000000000000',
+    farm_id: '00000000-0000-0000-0000-000000000000',
+    name: 'Demo Farmer'
+  }
+];
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.6:8000/v1';
+
+const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
+};
 
 export const api = {
   async getFarmer(farmerId) {
     try {
       const url = `${API_BASE_URL}/farmer/${farmerId}`;
-      const response = await fetch(url);
+      console.log('Fetching from:', url);
+      const response = await fetchWithTimeout(url, {}, 10000);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Farmer not found`);
       }
@@ -14,6 +32,12 @@ export const api = {
       return data;
     } catch (error) {
       console.error('Error fetching farmer:', error.message);
+      // Fallback to sample data for testing
+      const sampleFarmer = sampleFarmers.find(f => f.farmer_id === farmerId);
+      if (sampleFarmer) {
+        console.log('Using sample farmer data');
+        return sampleFarmer;
+      }
       throw error;
     }
   },

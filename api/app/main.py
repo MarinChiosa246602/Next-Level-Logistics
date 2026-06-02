@@ -9,7 +9,7 @@ load_dotenv(env_path)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.routers import records, infrastructure, uploads, rdw_vehicles
+from app.routers import records, infrastructure, uploads, rdw_vehicles, cargo_offers
 import logging
 
 # Set up logging
@@ -43,6 +43,7 @@ app.include_router(records.router, prefix="/v1", tags=["records"])
 app.include_router(infrastructure.router, prefix="/v1", tags=["infrastructure"])
 app.include_router(uploads.router, prefix="/v1", tags=["uploads"])
 app.include_router(rdw_vehicles.router, prefix="/v1", tags=["vehicles"])
+app.include_router(cargo_offers.router, prefix="/v1", tags=["cargo"])
 
 app.mount("/static/uploads", StaticFiles(directory="uploads"), name="static")
 

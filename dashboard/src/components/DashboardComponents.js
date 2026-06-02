@@ -170,3 +170,92 @@ export const StatsCards = ({ records }) => {
     </Grid>
   );
 };
+
+export const CargoStatsCards = ({ cargoData }) => {
+  const totalOffers = cargoData.offers ? cargoData.offers.length : 0;
+  const totalCapacity = cargoData.offers
+    ? cargoData.offers.reduce((sum, offer) => sum + (offer.cargo_volume_available || 0), 0)
+    : 0;
+  const activeBookings = cargoData.bookings ? cargoData.bookings.length : 0;
+
+  return (
+    <Grid container spacing={3} mb={4}>
+      <Grid item xs={12} sm={4}>
+        <Card style={{ padding: '20px', textAlign: 'center', backgroundColor: '#f3e5f5' }}>
+          <Typography variant="h6">Active Offers</Typography>
+          <Typography variant="h4">{totalOffers}</Typography>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={4}>
+        <Card style={{ padding: '20px', textAlign: 'center', backgroundColor: '#e1f5fe' }}>
+          <Typography variant="h6">Total Capacity (m³)</Typography>
+          <Typography variant="h4" color="primary.main">{totalCapacity.toFixed(1)}</Typography>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={4}>
+        <Card style={{ padding: '20px', textAlign: 'center', backgroundColor: '#fff3e0' }}>
+          <Typography variant="h6">Active Bookings</Typography>
+          <Typography variant="h4" color="warning.main">{activeBookings}</Typography>
+        </Card>
+      </Grid>
+    </Grid>
+  );
+};
+
+export const CargoOffersTable = ({ offers = [], onDetail }) => {
+  return (
+    <Paper style={{ width: '100%', overflow: 'hidden', padding: '20px' }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h5" component="h2">Active Cargo Offers</Typography>
+      </Box>
+
+      <Table>
+        <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
+          <TableRow>
+            <TableCell>Driver</TableCell>
+            <TableCell>Vehicle</TableCell>
+            <TableCell>Available (m³)</TableCell>
+            <TableCell>Delivery Window</TableCell>
+            <TableCell>Bookings</TableCell>
+            <TableCell>Action</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {offers && offers.length > 0 ? (
+            offers.map((offer) => (
+              <TableRow key={offer.offer_id} hover>
+                <TableCell>{offer.farmer_id}</TableCell>
+                <TableCell>{offer.vehicle_brand} {offer.vehicle_model}</TableCell>
+                <TableCell>{offer.cargo_volume_available}</TableCell>
+                <TableCell>
+                  {offer.delivery_window_start ? new Date(offer.delivery_window_start).toLocaleDateString() : 'N/A'}
+                </TableCell>
+                <TableCell>
+                  <Badge badgeContent={0} color="primary">
+                    <Typography variant="body2">View</Typography>
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Visibility />}
+                    onClick={() => onDetail && onDetail(offer.offer_id)}
+                  >
+                    Details
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={6} align="center">
+                <Typography color="textSecondary">No active cargo offers</Typography>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </Paper>
+  );
+};

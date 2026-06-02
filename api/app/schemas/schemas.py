@@ -112,3 +112,84 @@ class ProcessedRecord(BaseModel):
     provenance: ProvenanceInfo
     traceability: TraceabilityInfo
     extraction: ExtractionInfo
+
+class CargoOfferCreate(BaseModel):
+    license_plate: str
+    vehicle_brand: str
+    vehicle_model: str
+    vehicle_year: Optional[str] = None
+    cargo_volume_total: float
+    pickup_location_id: Optional[str] = None
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
+    delivery_location_label: str
+    delivery_lat: float
+    delivery_lng: float
+    delivery_window_start: datetime
+    delivery_window_end: datetime
+    driver_contact_phone: Optional[str] = None
+    driver_notes: Optional[str] = None
+
+class CargoOfferRead(BaseModel):
+    offer_id: str
+    farmer_id: str
+    license_plate: str
+    vehicle_brand: Optional[str]
+    vehicle_model: Optional[str]
+    vehicle_year: Optional[str]
+    cargo_volume_total: float
+    cargo_volume_available: float
+    delivery_location_label: str
+    delivery_lat: float
+    delivery_lng: float
+    delivery_window_start: datetime
+    delivery_window_end: datetime
+    driver_contact_phone: Optional[str]
+    driver_notes: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+class CargoBookingCreate(BaseModel):
+    offer_id: str
+    cargo_volume_booked: float
+    pickup_notes: Optional[str] = None
+
+class CargoBookingRead(BaseModel):
+    booking_id: str
+    offer_id: str
+    booked_by_farmer_id: str
+    cargo_volume_booked: float
+    pickup_notes: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    confirmed_at: Optional[datetime]
+    picked_up_at: Optional[datetime]
+    delivered_at: Optional[datetime]
+
+class CargoRouteRead(BaseModel):
+    route_id: str
+    distance_km: Optional[float]
+    duration_minutes: Optional[str]
+    polyline_encoded: Optional[str]
+    updated_at: Optional[datetime]
+
+class DriverRatingCreate(BaseModel):
+    driver_farmer_id: str
+    booking_id: Optional[str] = None
+    rating: int
+    comment: Optional[str] = None
+
+class DriverRatingRead(BaseModel):
+    rating_id: str
+    driver_farmer_id: str
+    reviewer_farmer_id: str
+    rating: int
+    comment: Optional[str]
+    created_at: datetime
+
+class DriverStatsRead(BaseModel):
+    average_rating: Optional[float]
+    total_ratings: int
+    recent_ratings: List[DriverRatingRead]

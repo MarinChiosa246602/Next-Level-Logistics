@@ -19,7 +19,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs camera access to take photos of your harvest for automated data entry.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to save captured photos."
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to save captured photos.",
+        "NSLocationWhenInUseUsageDescription": "This app needs your location to help with cargo pickup and delivery coordination.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs your location to help with cargo pickup and delivery coordination."
       }
     },
     "android": {
@@ -30,7 +32,9 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {

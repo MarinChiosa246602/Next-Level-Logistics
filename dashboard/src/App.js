@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Box, Typography, CssBaseline, Drawer, List, ListItem, ListItemIcon, ListItemText, Toolbar } from '@mui/material';
-import { Dashboard, History, Settings, Logout } from '@mui/icons-material';
+import { Dashboard, History, Settings, Logout, LocalShipping } from '@mui/icons-material';
 import { api } from './services/api';
-import { RecordTable, RecordDetail, StatsCards } from './components/DashboardComponents';
+import { RecordTable, RecordDetail, StatsCards, CargoStatsCards, CargoOffersTable } from './components/DashboardComponents';
 
 const drawerWidth = 240;
 
@@ -12,6 +12,7 @@ function App() {
   const [filters, setFilters] = useState({ status: '', search: '', dateFrom: '', dateTo: '' });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [cargoData, setCargoData] = useState({ offers: [], bookings: [] });
 
   async function fetchRecords() {
     setLoading(true);
@@ -25,9 +26,26 @@ function App() {
     }
   }
 
+  async function fetchCargoData() {
+    try {
+      const response = await fetch('http://localhost:8000/v1/cargo-offers');
+      const offersData = await response.json();
+      setCargoData({ offers: Array.isArray(offersData) ? offersData : [], bookings: [] });
+    } catch (e) {
+      console.error('Failed to fetch cargo data', e);
+      setCargoData({ offers: [], bookings: [] });
+    }
+  }
+
   useEffect(() => {
     fetchRecords();
   }, [filters]);
+
+  useEffect(() => {
+    if (activeTab === 'cargo') {
+      fetchCargoData();
+    }
+  }, [activeTab]);
 
   async function handleUpdateStatus(recordId, status) {
     try {
@@ -71,6 +89,10 @@ function App() {
             <ListItemIcon><History /></ListItemIcon>
             <ListItemText primary="History" />
           </ListItem>
+          <ListItem button onClick={() => setActiveTab('cargo')} selected={activeTab === 'cargo'}>
+            <ListItemIcon><LocalShipping /></ListItemIcon>
+            <ListItemText primary="Cargo Marketplace" />
+          </ListItem>
           <ListItem button onClick={() => setActiveTab('settings')}>
             <ListItemIcon><Settings /></ListItemIcon>
             <ListItemText primary="Settings" />
@@ -86,10 +108,10 @@ function App() {
           <Box mb={4} display="flex" justifyContent="space-between" alignItems="center">
             <Box>
               <Typography variant="h4" component="h1" fontWeight="bold" color="textPrimary">
-                {activeTab === 'dashboard' ? 'Management Dashboard' : 'Record History'}
+                {activeTab === 'dashboard' ? 'Management Dashboard' : activeTab === 'cargo' ? 'Cargo Marketplace' : 'Record History'}
               </Typography>
               <Typography variant="h6" color="textSecondary">
-                Review and validate harvest data from source farms.
+                {activeTab === 'cargo' ? 'View and manage cargo offers from farmers.' : 'Review and validate harvest data from source farms.'}
               </Typography>
             </Box>
           </Box>
@@ -128,6 +150,16 @@ function App() {
               onDetail={handleDetail}
               onStatusChange={handleUpdateStatus}
             />
+          )}
+
+          {activeTab === 'cargo' && (
+            <>
+              <CargoStatsCards cargoData={cargoData} />
+              <CargoOffersTable
+                offers={cargoData.offers}
+                onDetail={(offerId) => console.log('View offer:', offerId)}
+              />
+            </>
           )}
 
           {activeTab === 'settings' && (
