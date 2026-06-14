@@ -7,18 +7,20 @@ from app.models import models
 from app.schemas import schemas
 from app.pipeline.processor import AIProcessor
 from app.services.webhook import WebhookService
+from app.services import push_to_danil
 from datetime import datetime
 import uuid
 import asyncio
 import io
 import csv
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
 
 @router.post("/records", response_model=schemas.SubmissionResponse)
 async def create_record(submission: schemas.FarmerSubmission, db: Session = Depends(get_db)):
-    import logging
-    logger = logging.getLogger(__name__)
 
     logger.info(f"Received submission: farmer_id={submission.farmer_id}, location_id={submission.location_id}")
 
@@ -66,10 +68,41 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
 
     db.commit()
 
-    # Trigger AI processing if a photo is provided
+    # Trigger AI processing if a photo is provided (best-effort — never crashes the submission)
     if record.photo_url:
-        processor = AIProcessor(db=db)
-        await processor.process_record(str(record.record_id), record.photo_url)
+        try:
+            processor = AIProcessor(db=db)
+            await processor.process_record(str(record.record_id), record.photo_url)
+            # push_to_danil is called inside processor._save_to_db after AI commit
+        except Exception as ai_err:
+            logger.warning(f"AI processing skipped for record {record.record_id}: {ai_err}")
+
+    else:
+        # Form-only path: push immediately after the form commit
+        location = db.query(models.Location).filter(
+            models.Location.location_id == str(submission.location_id)
+        ).first()
+        product_type = submission.form_fields.product_type if submission.form_fields else "Unknown"
+        category = "other"
+        quantity = float(submission.form_fields.quantity or 0) if submission.form_fields else 0.0
+        quantity_unit = (
+            submission.form_fields.quantity_unit.value
+            if submission.form_fields and submission.form_fields.quantity_unit
+            else "kg"
+        )
+        push_to_danil.push(
+            source_record_id=str(record.record_id),
+            category=category,
+            product_type=product_type,
+            quantity=quantity,
+            quantity_unit=quantity_unit,
+            location_lat=float(location.lat) if location and location.lat else None,
+            location_lng=float(location.lng) if location and location.lng else None,
+            confidence_overall=1.0,  # form input is treated as fully confident
+            status="pending",
+            farm_id=str(farmer.farm_id),
+            farmer_id=str(submission.farmer_id),
+        )
 
     return {
         "record_id": str(record.record_id),
@@ -231,19 +264,28 @@ async def update_record_status(
 @router.get("/records/export")
 def export_records(
     farm_id: str = None,
-    from_date: datetime = None,
-    to_date: datetime = None,
+    farmer_id: str = None,
+    status: str = None,
+    from_date: str = None,
+    to_date: str = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Record)
-    if farm_id:
+    if farm_id and farm_id.strip():
         query = query.filter(models.Record.farm_id == str(farm_id))
-    if from_date:
-        query = query.filter(models.Record.submitted_at >= from_date)
-    if to_date:
-        query = query.filter(models.Record.submitted_at <= to_date)
+    if farmer_id and farmer_id.strip():
+        query = query.filter(models.Record.farmer_id == str(farmer_id))
+    if status and status.strip():
+        try:
+            query = query.filter(models.Record.status == models.RecordStatus(status))
+        except ValueError:
+            pass
+    if from_date and from_date.strip():
+        query = query.filter(models.Record.submitted_at >= datetime.fromisoformat(from_date))
+    if to_date and to_date.strip():
+        query = query.filter(models.Record.submitted_at <= datetime.fromisoformat(to_date))
 
-    records = query.all()
+    records = query.order_by(models.Record.submitted_at.desc()).all()
 
     output = io.StringIO()
     writer = csv.writer(output)

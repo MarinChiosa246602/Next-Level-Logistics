@@ -163,12 +163,20 @@ const AvailableCargoScreen = ({ navigation, route }) => {
 
           <View style={styles.footerRow}>
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
               onPress={() => handleViewOffer(offer)}
+              style={{ flex: 1, marginRight: 8 }}
+            >
+              View Route
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => navigation.navigate('CargoBooking', { offer, farmerId })}
               style={{ flex: 1 }}
             >
-              View Details →
+              ✓ Book Now
             </Button>
           </View>
         </TouchableOpacity>
@@ -319,7 +327,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   footerRow: {
+    flexDirection: 'row',
     marginTop: 8,
+    gap: 8,
   },
   centerContainer: {
     height: 200,

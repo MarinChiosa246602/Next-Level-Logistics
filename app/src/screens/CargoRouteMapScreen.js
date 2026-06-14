@@ -33,8 +33,22 @@ const CargoRouteMapScreen = ({ navigation, route }) => {
       setLoading(true);
 
       if (offer?.offer_id) {
+        console.log('Fetching route for offer:', offer.offer_id);
+        console.log('Offer data:', {
+          delivery_lat: offer.delivery_lat,
+          delivery_lng: offer.delivery_lng,
+          pickup_lat: offer.pickup_lat,
+          pickup_lng: offer.pickup_lng,
+        });
+
         const routeData = await cargoOfferService.getOfferRoute(offer.offer_id);
-        setRouteData(routeData);
+
+        if (!routeData) {
+          console.error('Route data is null');
+          Alert.alert('Error', 'Could not load route information. Please try again.');
+        } else {
+          setRouteData(routeData);
+        }
 
         if (!isOwnOffer && offer?.farmer_id) {
           const stats = await cargoOfferService.getDriverStats(offer.farmer_id);
@@ -43,6 +57,7 @@ const CargoRouteMapScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('Error loading route:', error);
+      Alert.alert('Error', 'Failed to load route information');
     } finally {
       setLoading(false);
     }
@@ -63,7 +78,8 @@ const CargoRouteMapScreen = ({ navigation, route }) => {
         offer.pickup_lat || 50.0,
         offer.pickup_lng || 5.0,
         offer.delivery_lat,
-        offer.delivery_lng
+        offer.delivery_lng,
+        offer.delivery_location_label
       );
       Linking.openURL(mapsUrl);
     });
@@ -75,7 +91,8 @@ const CargoRouteMapScreen = ({ navigation, route }) => {
       offer.pickup_lat || 50.0,
       offer.pickup_lng || 5.0,
       offer.delivery_lat,
-      offer.delivery_lng
+      offer.delivery_lng,
+      offer.delivery_location_label
     );
     Linking.openURL(mapsUrl);
   };

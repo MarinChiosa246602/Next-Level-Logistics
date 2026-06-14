@@ -10,6 +10,21 @@ from datetime import datetime, timezone
 
 router = APIRouter()
 
+@router.get("/farmers")
+def list_farmers(limit: int = 100, offset: int = 0, db: Session = Depends(get_db)):
+    """List all farmers with their farm info — used by the management dashboard."""
+    farmers = db.query(models.Farmer).offset(offset).limit(limit).all()
+    return [
+        {
+            "farmer_id": f.farmer_id,
+            "farm_id":   f.farm_id,
+            "name":      f.name,
+            "username":  f.username,
+            "phone_number": f.phone_number,
+        }
+        for f in farmers
+    ]
+
 @router.get("/farmer/{farmer_id}")
 def get_farmer(farmer_id: str, db: Session = Depends(get_db)):
     farmer = None

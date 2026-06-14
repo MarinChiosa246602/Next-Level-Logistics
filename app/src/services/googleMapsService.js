@@ -3,8 +3,9 @@ export const googleMapsService = {
     return `https://waze.com/ul?ll=${endLat},${endLng}&navigate=yes&q=${encodeURIComponent(destination || 'Destination')}`;
   },
 
-  getGoogleMapsUrl: (startLat, startLng, endLat, endLng) => {
-    return `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${endLat},${endLng}&travelmode=driving`;
+  getGoogleMapsUrl: (startLat, startLng, endLat, endLng, destinationName) => {
+    const dest = destinationName ? encodeURIComponent(destinationName) : `${endLat},${endLng}`;
+    return `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${dest}&travelmode=driving`;
   },
 
   formatRouteInfo: (distance_km, duration_minutes) => {

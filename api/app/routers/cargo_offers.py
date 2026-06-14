@@ -15,6 +15,9 @@ router = APIRouter(prefix="/cargo-offers", tags=["cargo"])
 @router.post("/", response_model=CargoOfferRead)
 async def create_cargo_offer(offer: CargoOfferCreate, farmer_id: str, db: Session = Depends(get_db)):
     try:
+        logger.info(f"Creating cargo offer for farmer {farmer_id}")
+        logger.info(f"Offer data: delivery_lat={offer.delivery_lat}, delivery_lng={offer.delivery_lng}")
+
         farmer = db.query(Farmer).filter(Farmer.farmer_id == farmer_id).first()
         if not farmer:
             raise HTTPException(status_code=404, detail="Farmer not found")
@@ -50,7 +53,7 @@ async def create_cargo_offer(offer: CargoOfferCreate, farmer_id: str, db: Sessio
         db.commit()
         db.refresh(new_offer)
 
-        logger.info(f"Created cargo offer {offer_id} for farmer {farmer_id}")
+        logger.info(f"Created cargo offer {offer_id} with delivery_lat={new_offer.delivery_lat}, delivery_lng={new_offer.delivery_lng}")
         return new_offer
 
     except HTTPException:
@@ -111,25 +114,39 @@ def get_cargo_offer(offer_id: str, db: Session = Depends(get_db)):
 @router.get("/{offer_id}/route", response_model=dict)
 def get_cargo_offer_route(offer_id: str, db: Session = Depends(get_db)):
     try:
+        logger.info(f"Fetching route for offer: {offer_id}")
+
         offer = db.query(CargoOffer).filter(CargoOffer.offer_id == offer_id).first()
         if not offer:
             raise HTTPException(status_code=404, detail="Cargo offer not found")
 
-        distance = ((offer.delivery_lat - (offer.pickup_lat or 50)) ** 2 +
-                   (offer.delivery_lng - (offer.pickup_lng or 5)) ** 2) ** 0.5 * 111
+        logger.info(f"Offer found: delivery_lat={offer.delivery_lat}, delivery_lng={offer.delivery_lng}")
 
-        return {
+        if offer.delivery_lat is None or offer.delivery_lng is None:
+            raise HTTPException(status_code=400, detail="Delivery location not set for this offer")
+
+        pickup_lat = offer.pickup_lat if offer.pickup_lat is not None else 52.3676
+        pickup_lng = offer.pickup_lng if offer.pickup_lng is not None else 4.9041
+
+        logger.info(f"Calculating distance from ({pickup_lat}, {pickup_lng}) to ({offer.delivery_lat}, {offer.delivery_lng})")
+
+        distance = ((float(offer.delivery_lat) - float(pickup_lat)) ** 2 +
+                   (float(offer.delivery_lng) - float(pickup_lng)) ** 2) ** 0.5 * 111
+
+        result = {
             "route_id": str(uuid.uuid4()),
             "distance_km": round(distance, 2),
             "duration_minutes": f"{int(distance * 1.2)} mins",
             "polyline_encoded": ""
         }
+        logger.info(f"Route calculated successfully: {result}")
+        return result
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting cargo route: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting cargo route for offer {offer_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error calculating route: {str(e)}")
 
 @router.patch("/{offer_id}", response_model=CargoOfferRead)
 def update_cargo_offer(offer_id: str, updates: dict, db: Session = Depends(get_db)):

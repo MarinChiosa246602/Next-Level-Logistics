@@ -28,6 +28,7 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
   const [licensePlate, setLicensePlate] = useState('');
   const [vehicleData, setVehicleData] = useState(null);
   const [searchingVehicle, setSearchingVehicle] = useState(false);
+  const [cargoVolumeInput, setCargoVolumeInput] = useState('');
 
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [deliveryLat, setDeliveryLat] = useState('');
@@ -42,6 +43,9 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
   const [pickupLng, setPickupLng] = useState('');
   const [pickupLocationName, setPickupLocationName] = useState('');
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [showPickupInput, setShowPickupInput] = useState(false);
+  const [pickupManualLocation, setPickupManualLocation] = useState('');
+  const [gettingLocationManual, setGettingLocationManual] = useState(false);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
@@ -75,6 +79,34 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleGeocodePickupLocation = async () => {
+    if (!pickupManualLocation.trim()) {
+      Alert.alert('Error', 'Please enter a location address');
+      return;
+    }
+
+    try {
+      setGettingLocationManual(true);
+      const geocoded = await locationService.geocodeAddress(pickupManualLocation);
+
+      if (!geocoded) {
+        Alert.alert('Error', 'Could not find coordinates for this location. Please check the address.');
+        return;
+      }
+
+      setPickupLat(geocoded.latitude.toString());
+      setPickupLng(geocoded.longitude.toString());
+      setPickupLocationName(pickupManualLocation);
+      setShowPickupInput(false);
+      Alert.alert('Success', 'Location confirmed!');
+    } catch (error) {
+      console.error('Error geocoding pickup location:', error);
+      Alert.alert('Error', 'Failed to geocode location');
+    } finally {
+      setGettingLocationManual(false);
+    }
+  };
+
   const handleSearchVehicle = async () => {
     if (!licensePlate.trim()) {
       Alert.alert('Error', 'Please enter a license plate');
@@ -90,13 +122,9 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
         return;
       }
 
-      const totalCapacity = (data.cargoVolume || data.bootCapacity || 0) * 0.8;
-
-      setVehicleData({
-        ...data,
-        cargoVolume: totalCapacity
-      });
-      setStep(2);
+      setVehicleData(data);
+      setCargoVolumeInput(data.cargoVolume ? data.cargoVolume.toFixed(2) : '');
+      // Don't auto-advance to step 2 so user can review/edit cargo volume
     } catch (error) {
       console.error('Error searching vehicle:', error);
       Alert.alert('Error', error.message || 'Failed to search vehicle');
@@ -106,9 +134,6 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
   };
 
   const handleDateChange = (event, date) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
     if (date) {
       setDeliveryDate(date);
       const newStart = new Date(date);
@@ -119,28 +144,25 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
       newEnd.setHours(17, 0, 0);
       setDeliveryEndTime(newEnd);
     }
+    setShowDatePicker(false);
   };
 
   const handleStartTimeChange = (event, time) => {
-    if (Platform.OS === 'android') {
-      setShowStartTimePicker(false);
-    }
     if (time) {
       const newTime = new Date(deliveryDate);
       newTime.setHours(time.getHours(), time.getMinutes());
       setDeliveryStartTime(newTime);
     }
+    setShowStartTimePicker(false);
   };
 
   const handleEndTimeChange = (event, time) => {
-    if (Platform.OS === 'android') {
-      setShowEndTimePicker(false);
-    }
     if (time) {
       const newTime = new Date(deliveryDate);
       newTime.setHours(time.getHours(), time.getMinutes());
       setDeliveryEndTime(newTime);
     }
+    setShowEndTimePicker(false);
   };
 
   const handleCreateOffer = async () => {
@@ -152,8 +174,11 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
 
+      console.log('Geocoding delivery location:', deliveryLocation);
       // Geocode the delivery location to get coordinates
       const geocoded = await locationService.geocodeAddress(deliveryLocation);
+
+      console.log('Geocoded result:', geocoded);
 
       if (!geocoded) {
         Alert.alert('Error', 'Could not find coordinates for delivery location. Please check the address.');
@@ -163,13 +188,14 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
 
       const deliveryLatValue = geocoded.latitude;
       const deliveryLngValue = geocoded.longitude;
+      console.log('Delivery coords:', deliveryLatValue, deliveryLngValue);
 
       const offerData = {
         license_plate: vehicleData.licensePlate,
         vehicle_brand: vehicleData.brand,
         vehicle_model: vehicleData.model,
         vehicle_year: vehicleData.year?.toString(),
-        cargo_volume_total: parseFloat(vehicleData.cargoVolume),
+        cargo_volume_total: parseFloat(cargoVolumeInput) || 0,
         pickup_location_id: null,
         pickup_lat: pickupLat ? parseFloat(pickupLat) : null,
         pickup_lng: pickupLng ? parseFloat(pickupLng) : null,
@@ -185,10 +211,7 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
       const result = await cargoOfferService.createCargoOffer(farmerId, offerData);
 
       Alert.alert('Success', 'Cargo offer created!');
-      navigation.navigate('AvailableCargo', {
-        farmerId,
-        newOfferId: result.offer_id
-      });
+      navigation.goBack();
     } catch (error) {
       console.error('Error creating offer:', error);
       Alert.alert('Error', 'Failed to create cargo offer');
@@ -237,11 +260,15 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
                   <Text style={styles.detailLabel}>Year:</Text>
                   <Text style={styles.detailValue}>{vehicleData.year || 'N/A'}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Cargo Volume:</Text>
-                  <Text style={[styles.detailValue, { color: colors.primary, fontWeight: '600' }]}>
-                    {vehicleData.cargoVolume.toFixed(2)}m³
-                  </Text>
+                <View style={[styles.detailRow, { alignItems: 'center' }]}>
+                  <Text style={styles.detailLabel}>Cargo Volume (m³):</Text>
+                  <TextInput
+                    style={[styles.input, { width: 100, textAlign: 'right', padding: 8, fontSize: 14, fontWeight: '600', color: colors.primary }]}
+                    value={cargoVolumeInput}
+                    onChangeText={setCargoVolumeInput}
+                    keyboardType="numeric"
+                    placeholder="e.g. 10.5"
+                  />
                 </View>
                 <View style={[styles.detailRow, { marginTop: 8 }]}>
                   <Text style={styles.smallText}>
@@ -255,7 +282,13 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
           <View style={styles.buttonRow}>
             <Button
               variant="primary"
-              onPress={() => vehicleData ? setStep(2) : null}
+              onPress={() => {
+                if (!cargoVolumeInput || parseFloat(cargoVolumeInput) <= 0) {
+                  Alert.alert('Required', 'Please enter a valid cargo volume (m³) greater than 0 before proceeding.');
+                  return;
+                }
+                setStep(2);
+              }}
               disabled={!vehicleData || searchingVehicle}
               style={{ flex: 1 }}
             >
@@ -279,15 +312,43 @@ const CargoOfferCreationScreen = ({ navigation, route }) => {
             ) : (
               <Text style={styles.placeholderText}>No location selected</Text>
             )}
-            <TouchableOpacity
-              style={[styles.button, gettingLocation && styles.buttonDisabled]}
-              onPress={handleUseCurrentLocation}
-              disabled={gettingLocation}
-            >
-              <Text style={styles.buttonText}>
-                {gettingLocation ? '📍 Getting Location...' : '📍 Use Current Location'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.locationButtonGroup}>
+              <TouchableOpacity
+                style={[styles.button, gettingLocation && styles.buttonDisabled, { flex: 1 }]}
+                onPress={handleUseCurrentLocation}
+                disabled={gettingLocation}
+              >
+                <Text style={styles.buttonText}>
+                  {gettingLocation ? '📍 Getting...' : '📍 Use Current'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, { flex: 1, marginLeft: 8 }]}
+                onPress={() => setShowPickupInput(!showPickupInput)}
+              >
+                <Text style={styles.buttonText}>✏️ Enter Manually</Text>
+              </TouchableOpacity>
+            </View>
+            {showPickupInput && (
+              <View style={[styles.formGroup, { marginTop: 12, marginBottom: 0 }]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Amsterdam Farm, Veluwe Region"
+                  value={pickupManualLocation}
+                  onChangeText={setPickupManualLocation}
+                  editable={!gettingLocationManual}
+                />
+                <TouchableOpacity
+                  style={[styles.button, gettingLocationManual && styles.buttonDisabled, { marginTop: 8 }]}
+                  onPress={handleGeocodePickupLocation}
+                  disabled={gettingLocationManual}
+                >
+                  <Text style={styles.buttonText}>
+                    {gettingLocationManual ? '🔄 Geocoding...' : '✓ Confirm Location'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <View style={styles.formGroup}>
@@ -531,6 +592,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  locationButtonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
 });
 

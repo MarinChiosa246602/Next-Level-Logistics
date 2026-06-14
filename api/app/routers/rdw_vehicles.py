@@ -102,13 +102,15 @@ def parse_vehicle_record(record: dict, formatted_plate: str, boot_capacity: Opti
         except:
             pass
 
+    reduced_capacity = capacity * 0.8 if capacity else None
+
     return VehicleData(
         licensePlate=formatted_plate,
         brand=record.get("merk", "Unknown"),
         model=record.get("handelsbenaming", "Unknown"),
         year=year,
         bootCapacity=capacity,
-        cargoVolume=capacity,
+        cargoVolume=reduced_capacity,
         fuelType=record.get("brandstof_omschrijving", "Unknown"),
         axles=record.get("aantal_assen"),
         maxWeight=record.get("maximaal_toegestaan_gewicht_voertuig"),

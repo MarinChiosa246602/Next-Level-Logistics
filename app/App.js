@@ -13,6 +13,7 @@ import MyCargoOffersScreen from './src/screens/MyCargoOffersScreen';
 import AvailableCargoScreen from './src/screens/AvailableCargoScreen';
 import CargoOfferCreationScreen from './src/screens/CargoOfferCreationScreen';
 import CargoRouteMapScreen from './src/screens/CargoRouteMapScreen';
+import CargoBookingScreen from './src/screens/CargoBookingScreen';
 import { colors, spacing } from './src/theme';
 
 const Stack = createStackNavigator();
@@ -81,12 +82,12 @@ function LicensePlateStack({ lang }) {
   );
 }
 
-function CargoMarketplaceStack({ farmerId }) {
+function CargoOffersStack({ farmerId }) {
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="MyOffersTab"
-        options={{ title: 'Cargo Marketplace' }}
+        options={{ title: 'My Offers', headerShown: false }}
       >
         {(props) => <MyCargoOffersScreen {...props} route={{ params: { farmerId } }} />}
       </Stack.Screen>
@@ -96,18 +97,91 @@ function CargoMarketplaceStack({ farmerId }) {
       >
         {(props) => <CargoOfferCreationScreen {...props} route={{ params: { farmerId } }} />}
       </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
+function CargoAvailableStack({ farmerId }) {
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="AvailableCargo"
-        options={{ title: 'Available Cargo' }}
+        name="AvailableCargoTab"
+        options={{ title: 'Available Cargo', headerShown: false }}
       >
         {(props) => <AvailableCargoScreen {...props} route={{ params: { farmerId } }} />}
       </Stack.Screen>
-      <Stack.Screen
-        name="CargoRouteMap"
-        options={{ title: 'Route Details' }}
-      >
-        {(props) => <CargoRouteMapScreen {...props} />}
-      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
+function CargoMarketplaceStack({ farmerId }) {
+  return (
+    <Stack.Navigator
+      screenOptions={{ ...screenOptions, presentation: 'modal' }}
+    >
+      <Stack.Group screenOptions={{ ...screenOptions, headerShown: true }}>
+        <Stack.Screen
+          name="CargoTabs"
+          options={{ headerShown: false }}
+        >
+          {() => (
+            <Tab.Navigator
+              screenOptions={{
+                headerShown: false,
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.gray500,
+                tabBarStyle: {
+                  borderTopColor: colors.border,
+                  paddingBottom: spacing.xs / 2,
+                  paddingTop: spacing.xs / 2,
+                  height: 50,
+                },
+                tabBarLabelStyle: {
+                  fontSize: 11,
+                  fontWeight: '500',
+                  marginTop: -4,
+                },
+                tabBarIconStyle: {
+                  marginBottom: 2,
+                },
+              }}
+            >
+              <Tab.Screen
+                name="MyOffersStack"
+                options={{
+                  tabBarLabel: 'My Offers',
+                  tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 14 }}>📦</Text>,
+                }}
+              >
+                {(props) => <CargoOffersStack {...props} farmerId={farmerId} />}
+              </Tab.Screen>
+              <Tab.Screen
+                name="AvailableCargoStack"
+                options={{
+                  tabBarLabel: 'Available',
+                  tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 14 }}>🔍</Text>,
+                }}
+              >
+                {(props) => <CargoAvailableStack {...props} farmerId={farmerId} />}
+              </Tab.Screen>
+            </Tab.Navigator>
+          )}
+        </Stack.Screen>
+      </Stack.Group>
+      <Stack.Group screenOptions={{ presentation: 'card' }}>
+        <Stack.Screen
+          name="CargoRouteMap"
+          options={{ title: 'Route Details' }}
+        >
+          {(props) => <CargoRouteMapScreen {...props} />}
+        </Stack.Screen>
+        <Stack.Screen
+          name="CargoBooking"
+          options={{ title: 'Book Cargo Space' }}
+        >
+          {(props) => <CargoBookingScreen {...props} />}
+        </Stack.Screen>
+      </Stack.Group>
     </Stack.Navigator>
   );
 }

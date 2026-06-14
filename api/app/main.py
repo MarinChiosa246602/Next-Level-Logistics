@@ -47,6 +47,11 @@ app.include_router(cargo_offers.router, prefix="/v1", tags=["cargo"])
 
 app.mount("/static/uploads", StaticFiles(directory="uploads"), name="static")
 
-@app.get("/")
-def root():
-    return {"message": "Welcome to the Farmer Data Collection System API. Visit /docs for documentation."}
+# Serve React frontend dashboard if built
+build_dir = Path(__file__).parent.parent.parent / "dashboard" / "build"
+if build_dir.exists():
+    app.mount("/", StaticFiles(directory=str(build_dir), html=True), name="dashboard")
+else:
+    @app.get("/")
+    def root():
+        return {"message": "Welcome to the Farmer Data Collection System API. Visit /docs for documentation."}
