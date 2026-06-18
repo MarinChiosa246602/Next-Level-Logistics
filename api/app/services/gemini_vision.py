@@ -66,65 +66,83 @@ class GeminiVisionService:
     async def _send_to_gemini(self, base64_image: str) -> Dict[str, Any]:
         """
         Sends a base64-encoded image to Gemini API and returns analysis.
+        Implements exponential backoff retries for 503 errors.
         """
-        try:
-            prompt = (
-                "Analyze this agricultural produce image. Return a JSON object with the following keys: "
-                "product_type (e.g., Tomatoes), "
-                "category (e.g., vegetables, fruit, grain, dairy), "
-                "estimated_quantity (as a float), "
-                "condition_rating (one of: good, mixed, damaged), "
-                "confidence (a dict with keys: product_type, quantity, condition, each as a float 0.0-1.0). "
-                "Only return the JSON object, no other text."
-            )
+        import asyncio
+        max_retries = 3
 
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt},
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": base64_image
-                            }
+        prompt = (
+            "Analyze this agricultural produce image. Return a JSON object with the following keys: "
+            "product_type (e.g., Tomatoes), "
+            "category (e.g., vegetables, fruit, grain, dairy), "
+            "estimated_quantity (as a float), "
+            "condition_rating (one of: good, mixed, damaged), "
+            "confidence (a dict with keys: product_type, quantity, condition, each as a float 0.0-1.0). "
+            "Only return the JSON object, no other text."
+        )
+
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inline_data": {
+                            "mime_type": "image/jpeg",
+                            "data": base64_image
                         }
-                    ]
-                }]
-            }
+                    }
+                ]
+            }]
+        }
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(self.endpoint, json=payload, timeout=30.0)
-                logger.info(f"Gemini response status: {response.status_code}")
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(self.endpoint, json=payload, timeout=30.0)
+                    logger.info(f"Gemini response status: {response.status_code}")
 
-                if response.status_code != 200:
-                    logger.error(f"Gemini API error {response.status_code}: {response.text}")
-                    raise Exception(f"Gemini API returned {response.status_code}")
+                    if response.status_code == 503 and attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt
+                        logger.warning(f"Gemini 503 error on attempt {attempt+1}, retrying in {sleep_time}s...")
+                        await asyncio.sleep(sleep_time)
+                        continue
 
-                result = response.json()
-                logger.debug(f"Gemini raw response: {result}")
+                    if response.status_code != 200:
+                        logger.error(f"Gemini API error {response.status_code}: {response.text}")
+                        raise Exception(f"Gemini API returned {response.status_code}")
 
-                if 'candidates' not in result or not result['candidates']:
-                    logger.error(f"No candidates in Gemini response: {result}")
-                    raise Exception("Gemini returned no candidates")
+                    result = response.json()
+                    logger.debug(f"Gemini raw response: {result}")
 
-                text_response = result['candidates'][0]['content']['parts'][0].get('text', '').strip()
-                logger.debug(f"Gemini text response: {text_response}")
+                    if 'candidates' not in result or not result['candidates']:
+                        logger.error(f"No candidates in Gemini response: {result}")
+                        raise Exception("Gemini returned no candidates")
 
-                if not text_response:
-                    raise Exception("Gemini returned empty text")
+                    text_response = result['candidates'][0]['content']['parts'][0].get('text', '').strip()
+                    logger.debug(f"Gemini text response: {text_response}")
 
-                import json
+                    if not text_response:
+                        raise Exception("Gemini returned empty text")
 
-                # Strip markdown code fences if present
-                if text_response.startswith('```'):
-                    text_response = text_response.replace('```json', '').replace('```', '').strip()
+                    import json
 
-                try:
-                    return json.loads(text_response)
-                except json.JSONDecodeError as e:
-                    logger.error(f"Gemini returned non-JSON: {text_response}")
-                    raise Exception(f"Gemini response not JSON: {text_response[:100]}")
+                    # Strip markdown code fences if present
+                    if text_response.startswith('```'):
+                        text_response = text_response.replace('```json', '').replace('```', '').strip()
 
-        except Exception as e:
-            logger.error(f"Error in GeminiVisionService._send_to_gemini: {str(e)}")
-            raise e
+                    try:
+                        return json.loads(text_response)
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Gemini returned non-JSON: {text_response}")
+                        raise Exception(f"Gemini response not JSON: {text_response[:100]}")
+
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Error in GeminiVisionService._send_to_gemini after {max_retries} attempts: {str(e)}")
+                    raise e
+                if "503" in str(e) or "timeout" in str(e).lower():
+                    sleep_time = 2 ** attempt
+                    logger.warning(f"Transient error ({str(e)}) on attempt {attempt+1}, retrying in {sleep_time}s...")
+                    await asyncio.sleep(sleep_time)
+                else:
+                    raise e

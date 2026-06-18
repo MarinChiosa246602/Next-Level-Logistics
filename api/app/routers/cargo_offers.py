@@ -12,7 +12,7 @@ from app.services.google_maps_service import google_maps_service
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cargo-offers", tags=["cargo"])
 
-@router.post("/", response_model=CargoOfferRead)
+@router.post("", response_model=CargoOfferRead)
 async def create_cargo_offer(offer: CargoOfferCreate, farmer_id: str, db: Session = Depends(get_db)):
     try:
         logger.info(f"Creating cargo offer for farmer {farmer_id}")
@@ -62,13 +62,16 @@ async def create_cargo_offer(offer: CargoOfferCreate, farmer_id: str, db: Sessio
         logger.error(f"Error creating cargo offer: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=list[CargoOfferRead])
+@router.get("", response_model=list[CargoOfferRead])
 def list_cargo_offers(status: str = None, farmer_id: str = None, limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
     try:
         query = db.query(CargoOffer)
 
         if status:
-            query = query.filter(CargoOffer.status == status)
+            try:
+                query = query.filter(CargoOffer.status == CargoOfferStatus(status))
+            except ValueError:
+                pass
         else:
             query = query.filter(CargoOffer.status == CargoOfferStatus.active)
 
@@ -88,7 +91,10 @@ def list_my_cargo_offers(farmer_id: str, status: str = None, limit: int = 50, of
         query = db.query(CargoOffer).filter(CargoOffer.farmer_id == farmer_id)
 
         if status:
-            query = query.filter(CargoOffer.status == status)
+            try:
+                query = query.filter(CargoOffer.status == CargoOfferStatus(status))
+            except ValueError:
+                pass
 
         offers = query.order_by(CargoOffer.created_at.desc()).offset(offset).limit(limit).all()
         return offers
@@ -235,6 +241,22 @@ def create_cargo_booking(booking: CargoBookingCreate, farmer_id: str, db: Sessio
         raise
     except Exception as e:
         logger.error(f"Error creating cargo booking: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/bookings", response_model=list[CargoBookingRead])
+def list_cargo_bookings(status: str = None, limit: int = 200, offset: int = 0, db: Session = Depends(get_db)):
+    try:
+        query = db.query(CargoBooking)
+        if status:
+            try:
+                query = query.filter(CargoBooking.status == CargoBookingStatus(status))
+            except ValueError:
+                pass
+        bookings = query.order_by(CargoBooking.created_at.desc()).offset(offset).limit(limit).all()
+        return bookings
+
+    except Exception as e:
+        logger.error(f"Error listing cargo bookings: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/bookings/{booking_id}", response_model=dict)

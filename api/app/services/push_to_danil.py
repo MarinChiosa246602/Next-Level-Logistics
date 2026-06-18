@@ -23,8 +23,45 @@ logger = logging.getLogger(__name__)
 
 _ENDPOINT = "https://sfsc-bot.duckdns.org/marin/upload"
 _TOKEN = "Id6sBkF14gzOEpuvFNXSBNJfUG5Jhu_oMy3cRftkGbs"
-_HEADERS = {"Authorization": f"Bearer {_TOKEN}"}
+_HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {_TOKEN}"}
 _TIMEOUT = 10  # seconds
+_pending_tasks = set()
+
+def _map_category(product_type: str, category: str) -> Optional[str]:
+    pt = (product_type or "").lower()
+    cat = (category or "").lower()
+    
+    if any(x in pt for x in ["apple", "pear", "cherries", "strawberr", "lime", "citrus"]):
+        return "Fruit & conserven"
+    if any(x in pt for x in ["carrot", "tomato", "potato", "asparagus", "vegetable", "lettuce", "onion"]):
+        return "Groente"
+    if "cheese" in pt or "kaas" in pt:
+        return "Kaas"
+    if "wheat" in pt or "bread" in pt or "grain" in cat:
+        return "Brood"
+    if "meat" in pt or "vlees" in pt:
+        return "Vleeswaren"
+    if "drink" in pt or "drank" in pt:
+        return "Drank"
+    if "honey" in pt or "honing" in pt:
+        return "Honing"
+    if "egg" in pt or "eieren" in pt:
+        return "Eieren"
+        
+    if "fruit" in cat: return "Fruit & conserven"
+    if "vegetable" in cat: return "Groente"
+    if "dairy" in cat: return "Kaas"
+    
+    return "Overige"
+
+def _map_region(lat: Optional[float], lng: Optional[float]) -> Optional[str]:
+    if lat is None or lng is None:
+        return None
+    if lat > 52.5 and lng < 5.5: return "NW"
+    if lat > 52.5: return "NE"
+    if lng < 5.5: return "SW"
+    return "SE"
+
 
 
 async def _do_push(payload: dict) -> None:
@@ -32,18 +69,18 @@ async def _do_push(payload: dict) -> None:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(_ENDPOINT, json=payload, headers=_HEADERS)
-            resp.raise_for_status()
-            logger.info(
-                "push_to_danil: OK %s  source_record_id=%s",
-                resp.status_code,
-                payload.get("source_record_id"),
-            )
-    except httpx.HTTPStatusError as exc:
-        logger.warning(
-            "push_to_danil: HTTP %s — %s",
-            exc.response.status_code,
-            exc.response.text[:200],
-        )
+            if resp.status_code == 200:
+                logger.info(
+                    "push_to_danil: OK %s  source_record_id=%s",
+                    resp.status_code,
+                    payload.get("source_record_id"),
+                )
+            else:
+                logger.warning(
+                    "push_to_danil: HTTP %s — %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
     except Exception as exc:  # network errors, timeouts, etc.
         logger.warning("push_to_danil: failed — %s", exc)
 
@@ -80,12 +117,41 @@ def push(
     lat = float(location_lat) if location_lat is not None else 52.37
     lng = float(location_lng) if location_lng is not None else 5.22
 
+    mapped_category = _map_category(product_type, category)
+    mapped_region = _map_region(lat, lng)
+    
+    qty = float(quantity) if quantity is not None else 0.0
+    if quantity_unit and "crate" in quantity_unit.lower():
+        qty *= 15.0  # estimate 15kg per crate
+        
+    # Removed strict guards to ensure every submit pushes to Danil
+    if not mapped_category:
+        mapped_category = "Overige"
+    if not mapped_region:
+        mapped_region = "SE"
+    if confidence_overall is None:
+        confidence_overall = 0.5
+
+    # Check status according to confidence
+    if confidence_overall < 0.6 and status == "confirmed":
+        status = "pending"
+
+    qty = float(quantity) if quantity is not None else 0.0
+    qun = (quantity_unit or "kg").lower()
+    
+    if qun == "crates":
+        qty *= 15.0
+    elif qun == "boxes":
+        qty *= 10.0
+    elif qun == "units":
+        qty *= 1.0  # fallback estimate
+
     payload = {
         "source_record_id": source_record_id or str(uuid.uuid4()),
-        "category": category,
-        "product_type": product_type,
-        "quantity": float(quantity),
-        "quantity_unit": quantity_unit,
+        "category": category or "other",
+        "product_type": product_type or "Unknown",
+        "quantity": qty,
+        "quantity_unit": "kg",
         "location_lat": lat,
         "location_lng": lng,
         "confidence_overall": float(confidence_overall),
@@ -107,7 +173,9 @@ def push(
     # Schedule without blocking — errors are caught inside _do_push
     try:
         loop = asyncio.get_event_loop()
-        loop.create_task(_do_push(payload))
+        task = loop.create_task(_do_push(payload))
+        _pending_tasks.add(task)
+        task.add_done_callback(_pending_tasks.discard)
     except RuntimeError:
         # No running event loop (e.g. sync test context) — skip silently
         logger.debug("push_to_danil: no event loop, skipping push")

@@ -87,7 +87,7 @@ export const api = {
 
   async createCargoOffer(farmerId, offerData) {
     const response = await fetch(
-      `${API_BASE_URL}/cargo-offers/?farmer_id=${encodeURIComponent(farmerId)}`,
+      `${API_BASE_URL}/cargo-offers?farmer_id=${encodeURIComponent(farmerId)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 from app.models import models
 from app.services.gemini_vision import GeminiVisionService
 from app.pipeline.ocr import OCRService
-from app.services import push_to_danil
 from datetime import datetime
 import uuid
 import os
 import base64
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class AIProcessor:
             "product_type": vision_data["product_type"],
             "category": vision_data["category"],
             "quantity": vision_data["estimated_quantity"],
-            "unit": "crates", # Default for AI in MVP
+            "unit": "kg", # Default for AI in MVP
             "condition": vision_data["condition_rating"],
             "expiry_date": ocr_data["expiry_date"],
             "lot_number": ocr_data["lot_number"],
@@ -114,19 +114,44 @@ class AIProcessor:
         if record:
             record.ocr_raw_text = values["ocr_raw_text"]
             record.model_used = values["model_used"]
-            # Update updated_at
             record.updated_at = datetime.utcnow()
 
+            # Auto-promote rule
+            is_complete = bool(
+                values.get("product_type") and
+                values.get("category") and
+                values.get("quantity", 0) > 0
+            )
+            if overall >= 0.7 and is_complete:
+                record.status = models.RecordStatus.confirmed
+            else:
+                record.status = models.RecordStatus.pending
+
         # Save Product
-        product = models.RecordProduct(
-            record_id=record_id,
-            product_type=values["product_type"],
-            product_category=models.ProductCategory(values["category"]),
-            quantity=values["quantity"],
-            quantity_unit=models.QuantityUnit.crates,
-            quantity_source=models.QuantitySource.photo
-        )
-        self.db.add(product)
+        form_product = self.db.query(models.RecordProduct).filter(
+            models.RecordProduct.record_id == str(record_id),
+            models.RecordProduct.quantity_source == models.QuantitySource.form
+        ).first()
+
+        if form_product:
+            if values["product_type"] != "Unknown":
+                form_product.product_type = values["product_type"]
+            if values["category"] != "other":
+                form_product.product_category = models.ProductCategory(values["category"])
+            final_quantity = float(form_product.quantity)
+            final_unit = form_product.quantity_unit.value
+        else:
+            product = models.RecordProduct(
+                record_id=str(record_id),
+                product_type=values["product_type"],
+                product_category=models.ProductCategory(values["category"]),
+                quantity=values["quantity"],
+                quantity_unit=models.QuantityUnit.kg,
+                quantity_source=models.QuantitySource.photo
+            )
+            self.db.add(product)
+            final_quantity = values.get("quantity", 0.0)
+            final_unit = "kg"
 
         # Save Condition
         condition = models.RecordCondition(
@@ -160,19 +185,38 @@ class AIProcessor:
         self.db.commit()
 
         # --- Real-time push to Danil's matching endpoint ---
-        # Fetch location coordinates to spread records across regions
+        # We delegate this to the push_to_danil background task to avoid blocking
+        # and to ensure uniform mapping and validation rules are applied.
+        from app.services import push_to_danil
+        
         location = None
         if record and record.location_id:
             location = self.db.query(models.Location).filter(
                 models.Location.location_id == str(record.location_id)
             ).first()
 
+        final_product_type = form_product.product_type if form_product else values.get("product_type", "Unknown")
+        final_category = form_product.product_category.value if form_product else values.get("category", "other")
+
+        if final_category == "other":
+            pt_lower = final_product_type.lower()
+            if any(x in pt_lower for x in ["apple", "pear", "cherries", "strawberr", "lime", "citrus", "fruit"]):
+                final_category = "fruit"
+            elif any(x in pt_lower for x in ["carrot", "tomato", "potato", "asparagus", "vegetable", "lettuce", "onion"]):
+                final_category = "vegetables"
+            elif any(x in pt_lower for x in ["cheese", "kaas", "milk", "dairy", "butter"]):
+                final_category = "dairy"
+            elif any(x in pt_lower for x in ["wheat", "bread", "grain"]):
+                final_category = "grain"
+            elif any(x in pt_lower for x in ["meat", "vlees", "beef", "pork", "chicken"]):
+                final_category = "meat"
+
         push_to_danil.push(
             source_record_id=str(record_id),
-            category=values["category"],
-            product_type=values["product_type"],
-            quantity=float(values["quantity"]),
-            quantity_unit="crates",
+            category=final_category,
+            product_type=final_product_type,
+            quantity=final_quantity,
+            quantity_unit=final_unit,
             location_lat=float(location.lat) if location and location.lat else None,
             location_lng=float(location.lng) if location and location.lng else None,
             confidence_overall=overall,
@@ -181,5 +225,5 @@ class AIProcessor:
             farmer_id=str(record.farmer_id) if record else None,
             photo_url=photo_url,
             ocr_raw_text=values.get("ocr_raw_text"),
-            expiry_date=values["expiry_date"],
+            expiry_date=values.get("expiry_date")
         )

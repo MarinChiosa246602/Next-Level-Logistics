@@ -221,25 +221,25 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
               <Text style={styles.subsectionTitle}>📦 Boot Space Information</Text>
 
               <View style={styles.bootInfoContainer}>
-                <Text style={styles.bootCapacityLabel}>Total Cargo Volume:</Text>
+                <Text style={styles.bootCapacityLabel}>Total Cargo Volume (Available):</Text>
                 <Text style={styles.bootCapacityValue}>
                   {(() => {
-                    const volInfo = calculateBootVolumesInfo(vehicleData.bootCapacity);
+                    const volInfo = calculateBootVolumesInfo(vehicleData.cargoVolume);
                     console.log('Display - volInfo:', volInfo);
                     return `${volInfo?.liters || 'N/A'} L`;
                   })()}
                 </Text>
                 <Text style={styles.bootCapacitySubtext}>
-                  ({vehicleData.bootCapacity || 'N/A'} m³)
+                  ({vehicleData.cargoVolume ? vehicleData.cargoVolume.toFixed(2) : 'N/A'} m³ after 20% reduction)
                 </Text>
               </View>
 
-              {calculateBootVolumesInfo(vehicleData.bootCapacity) && (
+              {calculateBootVolumesInfo(vehicleData.cargoVolume) && (
                 <View style={styles.volumesGrid}>
                   <View style={styles.volumeCard}>
                     <Text style={styles.volumeLabel}>📦 Boxes</Text>
                     <Text style={styles.volumeNumber}>
-                      {calculateBootVolumesInfo(vehicleData.bootCapacity).boxes}
+                      {calculateBootVolumesInfo(vehicleData.cargoVolume).boxes}
                     </Text>
                     <Text style={styles.volumeNote}>(0.02m³ each)</Text>
                   </View>
@@ -247,7 +247,7 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
                   <View style={styles.volumeCard}>
                     <Text style={styles.volumeLabel}>📫 Cartons</Text>
                     <Text style={styles.volumeNumber}>
-                      {calculateBootVolumesInfo(vehicleData.bootCapacity).cartons}
+                      {calculateBootVolumesInfo(vehicleData.cargoVolume).cartons}
                     </Text>
                     <Text style={styles.volumeNote}>(0.003m³ each)</Text>
                   </View>
@@ -255,7 +255,7 @@ const LicensePlateScreen = ({ lang = 'nl' }) => {
                   <View style={styles.volumeCard}>
                     <Text style={styles.volumeLabel}>📦 Pallets</Text>
                     <Text style={styles.volumeNumber}>
-                      {calculateBootVolumesInfo(vehicleData.bootCapacity).pallets}
+                      {calculateBootVolumesInfo(vehicleData.cargoVolume).pallets}
                     </Text>
                     <Text style={styles.volumeNote}>(1m³ each)</Text>
                   </View>

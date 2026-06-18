@@ -10,7 +10,7 @@ const api = axios.create({
 export const cargoOfferService = {
   createCargoOffer: async (farmerId, offerData) => {
     try {
-      const response = await api.post('/cargo-offers/', offerData, {
+      const response = await api.post('/cargo-offers', offerData, {
         params: { farmer_id: farmerId }
       });
       return response.data;
@@ -22,7 +22,7 @@ export const cargoOfferService = {
 
   getAvailableOffers: async (filters = {}) => {
     try {
-      const response = await api.get('/cargo-offers/', {
+      const response = await api.get('/cargo-offers', {
         params: {
           status: filters.status || 'active',
           farmer_id: filters.excludeFarmerId,

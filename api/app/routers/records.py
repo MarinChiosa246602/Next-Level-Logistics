@@ -83,7 +83,20 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
             models.Location.location_id == str(submission.location_id)
         ).first()
         product_type = submission.form_fields.product_type if submission.form_fields else "Unknown"
-        category = "other"
+        pt_lower = product_type.lower()
+        if any(x in pt_lower for x in ["apple", "pear", "cherries", "strawberr", "lime", "citrus", "fruit"]):
+            category = "fruit"
+        elif any(x in pt_lower for x in ["carrot", "tomato", "potato", "asparagus", "vegetable", "lettuce", "onion"]):
+            category = "vegetables"
+        elif any(x in pt_lower for x in ["cheese", "kaas", "milk", "dairy", "butter"]):
+            category = "dairy"
+        elif any(x in pt_lower for x in ["wheat", "bread", "grain"]):
+            category = "grain"
+        elif any(x in pt_lower for x in ["meat", "vlees", "beef", "pork", "chicken"]):
+            category = "meat"
+        else:
+            category = "other"
+
         quantity = float(submission.form_fields.quantity or 0) if submission.form_fields else 0.0
         quantity_unit = (
             submission.form_fields.quantity_unit.value
@@ -110,6 +123,71 @@ async def create_record(submission: schemas.FarmerSubmission, db: Session = Depe
         "estimated_processing_ms": 3000,
         "message": "Record received. AI processing started."
     }
+
+@router.get("/records/export")
+def export_records(
+    farm_id: str = None,
+    farmer_id: str = None,
+    status: str = None,
+    from_date: str = None,
+    to_date: str = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Record)
+    if farm_id and farm_id.strip():
+        query = query.filter(models.Record.farm_id == str(farm_id))
+    if farmer_id and farmer_id.strip():
+        query = query.filter(models.Record.farmer_id == str(farmer_id))
+    if status and status.strip():
+        try:
+            query = query.filter(models.Record.status == models.RecordStatus(status))
+        except ValueError:
+            pass
+    if from_date and from_date.strip():
+        query = query.filter(models.Record.submitted_at >= datetime.fromisoformat(from_date))
+    if to_date and to_date.strip():
+        query = query.filter(models.Record.submitted_at <= datetime.fromisoformat(to_date))
+
+    records = query.order_by(models.Record.submitted_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "record_id", "farmer_id", "farm_id", "submitted_at", "product_type",
+        "product_category", "quantity", "quantity_unit", "condition",
+        "location_label", "location_type", "expiry_date", "lot_number",
+        "input_method", "overall_confidence", "status"
+    ])
+
+    for r in records:
+        prod = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == str(r.record_id)).first()
+        cond = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == str(r.record_id)).first()
+        trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == str(r.record_id)).first()
+        conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == str(r.record_id)).first()
+        loc = db.query(models.Location).filter(models.Location.location_id == str(r.location_id)).first()
+
+        writer.writerow([
+            r.record_id, r.farmer_id, r.farm_id, r.submitted_at,
+            prod.product_type if prod else "",
+            prod.product_category.value if prod else "",
+            prod.quantity if prod else "",
+            prod.quantity_unit.value if prod else "",
+            cond.rating.value if cond else "",
+            loc.label if loc else "",
+            loc.type.value if loc else "",
+            trace.expiry_date if trace else "",
+            trace.lot_number if trace else "",
+            r.input_method.value,
+            conf.overall if conf else "",
+            r.status.value
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=records_export.csv"}
+    )
 
 @router.get("/records/{record_id}", response_model=schemas.ProcessedRecord)
 def get_record(record_id: str, db: Session = Depends(get_db)):
@@ -260,68 +338,3 @@ async def update_record_status(
         await webhook.send_confirmation(full_record)
 
     return {"message": "Status updated", "status": status.value}
-
-@router.get("/records/export")
-def export_records(
-    farm_id: str = None,
-    farmer_id: str = None,
-    status: str = None,
-    from_date: str = None,
-    to_date: str = None,
-    db: Session = Depends(get_db)
-):
-    query = db.query(models.Record)
-    if farm_id and farm_id.strip():
-        query = query.filter(models.Record.farm_id == str(farm_id))
-    if farmer_id and farmer_id.strip():
-        query = query.filter(models.Record.farmer_id == str(farmer_id))
-    if status and status.strip():
-        try:
-            query = query.filter(models.Record.status == models.RecordStatus(status))
-        except ValueError:
-            pass
-    if from_date and from_date.strip():
-        query = query.filter(models.Record.submitted_at >= datetime.fromisoformat(from_date))
-    if to_date and to_date.strip():
-        query = query.filter(models.Record.submitted_at <= datetime.fromisoformat(to_date))
-
-    records = query.order_by(models.Record.submitted_at.desc()).all()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "record_id", "farmer_id", "farm_id", "submitted_at", "product_type",
-        "product_category", "quantity", "quantity_unit", "condition",
-        "location_label", "location_type", "expiry_date", "lot_number",
-        "input_method", "overall_confidence", "status"
-    ])
-
-    for r in records:
-        prod = db.query(models.RecordProduct).filter(models.RecordProduct.record_id == str(r.record_id)).first()
-        cond = db.query(models.RecordCondition).filter(models.RecordCondition.record_id == str(r.record_id)).first()
-        trace = db.query(models.RecordTraceability).filter(models.RecordTraceability.record_id == str(r.record_id)).first()
-        conf = db.query(models.RecordConfidence).filter(models.RecordConfidence.record_id == str(r.record_id)).first()
-        loc = db.query(models.Location).filter(models.Location.location_id == str(r.location_id)).first()
-
-        writer.writerow([
-            r.record_id, r.farmer_id, r.farm_id, r.submitted_at,
-            prod.product_type if prod else "",
-            prod.product_category.value if prod else "",
-            prod.quantity if prod else "",
-            prod.quantity_unit.value if prod else "",
-            cond.rating.value if cond else "",
-            loc.label if loc else "",
-            loc.type.value if loc else "",
-            trace.expiry_date if trace else "",
-            trace.lot_number if trace else "",
-            r.input_method.value,
-            conf.overall if conf else "",
-            r.status.value
-        ])
-
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=records_export.csv"}
-    )

@@ -31,10 +31,12 @@ export const api = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error fetching farmer:', error.message);
+      console.log('Error fetching farmer:', error.message);
       // Fallback to sample data for testing
       console.log('Using default sample farmer data as fallback');
-      return { ...sampleFarmers[0], farmer_id: farmerId };
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const finalFarmerId = uuidRegex.test(farmerId) ? farmerId : sampleFarmers[0].farmer_id;
+      return { ...sampleFarmers[0], farmer_id: finalFarmerId };
     }
   },
 
