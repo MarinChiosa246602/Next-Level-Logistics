@@ -169,6 +169,8 @@ npm start
 
 # Terminal 3: Start Mobile App
 cd app
+# IMPORTANT: Create a .env file in the app/ directory with your local network IP:
+# echo EXPO_PUBLIC_API_URL=http://YOUR_LOCAL_IP:8000/v1 > .env
 npm install
 npx expo start
 # Scan QR code with Expo Go app on your phone

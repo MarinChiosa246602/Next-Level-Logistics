@@ -53,11 +53,11 @@ const LoginScreen = ({ navigation, lang = 'nl' }) => {
         <View style={styles.content}>
           <Card style={styles.card}>
             <Text style={styles.title}>{t('home.welcome', lang)}</Text>
-            <Text style={styles.subtitle}>Enter your Farmer ID to access the system</Text>
+            <Text style={styles.subtitle}>Enter your username to access the system</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="e.g. ae94c048-e694-4c0d..."
+              placeholder="e.g. henk_van_den_berg"
               placeholderTextColor={colors.text.tertiary}
               value={farmerId}
               onChangeText={setFarmerId}

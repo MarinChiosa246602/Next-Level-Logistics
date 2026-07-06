@@ -8,7 +8,7 @@ const sampleFarmers = [
   }
 ];
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.6:8000/v1';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
   return Promise.race([
@@ -26,17 +26,14 @@ export const api = {
       console.log('Fetching from:', url);
       const response = await fetchWithTimeout(url, {}, 10000);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Farmer not found`);
+        const errText = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: Farmer not found. ${errText}`);
       }
       const data = await response.json();
       return data;
     } catch (error) {
-      console.log('Error fetching farmer:', error.message);
-      // Fallback to sample data for testing
-      console.log('Using default sample farmer data as fallback');
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const finalFarmerId = uuidRegex.test(farmerId) ? farmerId : sampleFarmers[0].farmer_id;
-      return { ...sampleFarmers[0], farmer_id: finalFarmerId };
+      console.error('Error fetching farmer:', error.message);
+      throw error;
     }
   },
 
@@ -74,7 +71,10 @@ export const api = {
       },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error('Record submission failed');
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Record submission failed (HTTP ${response.status}): ${errText}`);
+    }
     return response.json();
   },
 
@@ -83,7 +83,10 @@ export const api = {
       method: 'POST',
       body: formData,
     });
-    if (!response.ok) throw new Error('Photo upload failed');
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Photo upload failed (HTTP ${response.status}): ${errText}`);
+    }
     return response.json();
   },
 
@@ -96,19 +99,28 @@ export const api = {
         file_path: filePath
       }),
     });
-    if (!response.ok) throw new Error('AI analysis failed');
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`AI analysis failed (HTTP ${response.status}): ${errText}`);
+    }
     return response.json();
   },
 
   async getRecord(recordId) {
     const response = await fetch(`${API_BASE_URL}/records/${recordId}`);
-    if (!response.ok) throw new Error('Failed to fetch record');
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Failed to fetch record (HTTP ${response.status}): ${errText}`);
+    }
     return response.json();
   },
 
   async getHistory(farmerId) {
     const response = await fetch(`${API_BASE_URL}/records?farmer_id=${farmerId}&limit=10`);
-    if (!response.ok) throw new Error('Failed to fetch history');
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Failed to fetch history (HTTP ${response.status}): ${errText}`);
+    }
     return response.json();
   }
 };
